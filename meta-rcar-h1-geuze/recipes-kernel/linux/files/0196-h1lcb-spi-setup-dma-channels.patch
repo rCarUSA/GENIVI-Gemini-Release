@@ -1,0 +1,106 @@
+From e18cc25f753c96d24ce5da21b8143c27865a9311 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 16:13:17 +0700
+Subject: [PATCH 196/215] h1lcb spi setup dma channels
+
+---
+ arch/arm/mach-shmobile/board-h1lcb.c           |   12 ++++++++
+ arch/arm/mach-shmobile/hpb-dmae.c              |   36 ++++++++++++++++++++++++
+ arch/arm/mach-shmobile/include/mach/hpb-dmae.h |    4 +++
+ 3 files changed, 52 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index fa25e13..87c8311 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -963,6 +963,18 @@ static void __init h1lcb_init(void)
+ 	gpio_request(GPIO_FN_HSPI_TX2_B, NULL);
+ 	gpio_request(GPIO_FN_HSPI_RX2_B, NULL);
+ 
++	/* HPB-DMAC ch0,1 realtime HSPI */
++	{
++		void __iomem *hpbdmlvlr0 = ioremap_nocache(0xffc09160, 4);
++		void __iomem *hpbdmaspr0 = ioremap_nocache(0xffc09140, 4);
++		iowrite32(ioread32(hpbdmlvlr0) | (1 << 1) | (1 << 0)                 /* HPB-DMLVLR0: ch1(hspi_rx0) & ch0(hspi_rx2): - Group 1 */
++		                               | (1 << 5) | (1 << 4), hpbdmlvlr0);   /* HPB-DMLVLR0: ch5(hspi_tx0) & ch4(hspi_tx2): - Group 1 */
++		iowrite32(ioread32(hpbdmaspr0) | (9 << 4) | (9 << 0)                 /* HPB-DMASPR0: ch1(hspi_rx0) & ch0(hspi_rx2): priority 9 */
++		                               | (9 << 20) | (9 << 16), hpbdmaspr0); /* HPB-DMASPR0: ch5(hspi_tx0) & & ch4(hspi_tx2): priority 9 */
++		iounmap(hpbdmlvlr0);
++		iounmap(hpbdmaspr0);
++	}
++
+ 	/* USB (CN21) */
+ 	gpio_request(GPIO_FN_USB_OVC0, NULL);
+ 	gpio_request(GPIO_FN_USB_OVC1, NULL);
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 1ecb596..aa11b65 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -52,6 +52,34 @@ enum {
+ 
+ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 	{
++		.id	= HPBDMA_SLAVE_HSPI2_TX,
++		.addr	= 0xfffc6000 + 0x0C,
++		.dcr	= SPDS_8BIT | DMDL | DPDS_8BIT,
++		.port	= 0x1313,
++		.flags	= 0,
++		.dma_ch	= 4,
++	}, {
++		.id	= HPBDMA_SLAVE_HSPI2_RX,
++		.addr	= 0xfffc6000 + 0x13,
++		.dcr	= SMDL | SPDS_8BIT | DPDS_8BIT,
++		.port	= 0x1313,
++		.flags	= 0,
++		.dma_ch	= 0,
++	}, {
++		.id	= HPBDMA_SLAVE_HSPI0_TX,
++		.addr	= 0xfffc7000 + 0x0C,
++		.dcr	= SPDS_8BIT | DMDL | DPDS_8BIT,
++		.port	= 0x0A0A,
++		.flags	= 0,
++		.dma_ch	= 5,
++	}, {
++		.id	= HPBDMA_SLAVE_HSPI0_RX,
++		.addr	= 0xfffc7000 + 0x13,
++		.dcr	= SMDL | SPDS_8BIT | DPDS_8BIT,
++		.port	= 0x0A0A,
++		.flags	= 0,
++		.dma_ch	= 1,
++	}, {
+ 		.id	= HPBDMA_SLAVE_SDHI0_TX,
+ 		.addr	= 0xffe4c000 + 0x30,
+ 		.dcr	= SPDS_16BIT | DMDL | DPDS_16BIT,
+@@ -141,6 +169,14 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 
+ /* comment out for not using Ch */
+ static const struct hpb_dmae_channel rcar_dmae_channels[] = {
++	/* ch.0 HSPI2 */
++	DMAE_CHANNEL(IRQ_DMAC_H(0), HPBDMA_SLAVE_HSPI2_RX),
++	/* ch.4 HSPI2 */
++	DMAE_CHANNEL(IRQ_DMAC_H(4), HPBDMA_SLAVE_HSPI2_TX),
++	/* ch.1 HSPI0 */
++	DMAE_CHANNEL(IRQ_DMAC_H(1), HPBDMA_SLAVE_HSPI0_RX),
++	/* ch.5 HSPI0 */
++	DMAE_CHANNEL(IRQ_DMAC_H(5), HPBDMA_SLAVE_HSPI0_TX),
+ 	/* ch.21 SD0 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(21), HPBDMA_SLAVE_SDHI0_TX),
+ 	/* ch.22 SD0 */
+diff --git a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+index dcd4715..31d6f67 100644
+--- a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
++++ b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+@@ -25,6 +25,10 @@ extern struct platform_device rcar_dma_device;
+ /* DMA slave IDs */
+ enum {
+ 	HPBDMA_SLAVE_INVALID,		/* DMA slave ID 0 means no DMA */
++	HPBDMA_SLAVE_HSPI2_RX,		/*Ch.0*/
++	HPBDMA_SLAVE_HSPI0_RX,		/*Ch.1*/
++	HPBDMA_SLAVE_HSPI2_TX,		/*Ch.4*/
++	HPBDMA_SLAVE_HSPI0_TX,		/*Ch.5*/
+ 	HPBDMA_SLAVE_SDHI0_TX,		/*Ch.21*/
+ 	HPBDMA_SLAVE_SDHI0_RX,		/*Ch.22*/
+ 	HPBDMA_SLAVE_MMC0_TX,		/*Ch.24*/
+-- 
+1.7.9.5
+

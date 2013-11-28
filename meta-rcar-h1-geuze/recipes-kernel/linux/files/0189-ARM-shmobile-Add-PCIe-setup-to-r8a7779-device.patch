@@ -1,0 +1,63 @@
+From 5d62f3846c64aa87fffd6fa43ad7ac70ec48fba7 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Mar 2013 13:49:22 +0000
+Subject: [PATCH 189/215] ARM: shmobile: Add PCIe setup to r8a7779 device
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/setup-r8a7779.c |   25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/setup-r8a7779.c b/arch/arm/mach-shmobile/setup-r8a7779.c
+index a9dc514..12b9657 100644
+--- a/arch/arm/mach-shmobile/setup-r8a7779.c
++++ b/arch/arm/mach-shmobile/setup-r8a7779.c
+@@ -362,6 +362,25 @@ static struct platform_device sgx_device = {
+ 	.num_resources	= ARRAY_SIZE(sgx_resources),
+ };
+ 
++/* PCI Express */
++static struct resource pcie_resources[] = {
++	{
++		.start  = 0xfe000000,
++		.end    = 0xfe07ffff,
++		.flags  = IORESOURCE_MEM,
++	}, {
++		.start  = gic_spi(101),
++		.flags  = IORESOURCE_IRQ,
++	},
++};
++
++static struct platform_device pcie_device = {
++	.name		= "pciec",
++	.id		= 0,
++	.resource	= pcie_resources,
++	.num_resources	= ARRAY_SIZE(pcie_resources),
++};
++
+ static struct platform_device *r8a7779_early_devices[] __initdata = {
+ 	&scif0_device,
+ 	&scif1_device,
+@@ -385,6 +404,8 @@ static struct platform_device *r8a7779_late_devices[] __initdata = {
+ 	&sgx_device,
+ };
+ 
++void rcar_pcie_init(struct platform_device *);
++
+ void __init r8a7779_add_standard_devices(void)
+ {
+ #ifdef CONFIG_CACHE_L2X0
+@@ -405,6 +426,10 @@ void __init r8a7779_add_standard_devices(void)
+ 
+ 	r8a7779_add_device_to_domain(&r8a7779_sgx, &sgx_device);
+ 	pm_clk_add(&sgx_device.dev, "sgx");
++
++#ifdef CONFIG_RENESAS_RCAR_PCI
++	rcar_pcie_init(&pcie_device);
++#endif
+ }
+ 
+ /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
+-- 
+1.7.9.5
+

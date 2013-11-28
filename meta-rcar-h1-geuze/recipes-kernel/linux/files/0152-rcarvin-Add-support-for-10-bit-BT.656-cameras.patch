@@ -1,0 +1,49 @@
+From 244de7763042e09f584991a3b1405b76303a62fe Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 4 Mar 2013 09:56:33 +0000
+Subject: [PATCH 152/215] rcarvin: Add support for 10-bit BT.656 cameras
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/media/video/rcarvin.c |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/drivers/media/video/rcarvin.c b/drivers/media/video/rcarvin.c
+index 7b2660c..dd61a74 100644
+--- a/drivers/media/video/rcarvin.c
++++ b/drivers/media/video/rcarvin.c
+@@ -294,6 +294,8 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
+ #define VIN_VNMC_VUP		0x00000400 /* Vin register UPdate control */
+ #define VIN_VNMC_INF_YUV8_BT656	0x00000000 /* BT.656/8-bit/YCbCr-422 */
+ #define VIN_VNMC_INF_YUV8_BT601	0x00010000 /* BT.601/8-bit/YCbCr-422 */
++#define VIN_VNMC_INF_YUV10_BT656 0x00020000 /* BT.656/10/12-bit/YCbCr-422 */
++#define VIN_VNMC_INF_YUV10_BT601 0x00030000 /* BT.601/10/12-bit/YCbCr-422 */
+ #define VIN_VNMC_INF_YUV16	0x00050000 /* BT.1358/16bit/YUV-422 */
+ #define VIN_VNMC_INF_RGB888_24	0x00060000 /* BT.601/12 or 24bit/RGB-888 */
+ #define VIN_VNMC_INF_RGB666	0x00070000 /* BT.601/18bit/RGB-666 or
+@@ -406,6 +408,14 @@ static void rcar_vin_setup(struct rcar_vin_dev *pcdev)
+ 			mc |= VIN_VNMC_INF_YUV8_BT656;
+ 		else
+ 			mc |= VIN_VNMC_INF_YUV8_BT601;
++		break;
++	case V4L2_MBUS_FMT_YUYV10_2X10:
++		input_is_yuv = 1;
++		/* BT.656 10bit YCbCr-422 */
++		if (pcdev->use_bt656)
++			mc |= VIN_VNMC_INF_YUV10_BT656;
++		else
++			mc |= VIN_VNMC_INF_YUV10_BT601;
+ 	default:
+ 		break;
+ 	}
+@@ -1188,6 +1198,7 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
+ 	case V4L2_MBUS_FMT_RGB666_1X18_LE:
+ 	case V4L2_MBUS_FMT_YUYV8_1X16:
+ 	case V4L2_MBUS_FMT_YUYV8_2X8:
++	case V4L2_MBUS_FMT_YUYV10_2X10:
+ 		if (cam->extra_fmt)
+ 			break;
+ 
+-- 
+1.7.9.5
+

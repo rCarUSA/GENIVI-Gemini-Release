@@ -1,0 +1,93 @@
+From 891d3339553120e62d8f95a45a0e9b0494253144 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 26 Sep 2012 16:48:44 +0100
+Subject: [PATCH 173/215] marzen: Add resources & pinmux for 24-bit RGB Video
+ In (VIN0)
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/Kconfig        |    9 +++++++++
+ arch/arm/mach-shmobile/board-marzen.c |   31 +++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index c540486..5568dec 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -139,6 +139,15 @@ config MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	help
+ 	  Display Unit 1 is multiplexed with video in 2 (VIN2).
+ 
++config MACH_MARZEN_REE_EDC_EXP_BOARD_24BIT_VIN
++	bool "Use 24-bit input on VIN0"
++	depends on MACH_MARZEN_REE_EDC_EXP_BOARD
++	depends on !MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++	select SOC_CAMERA_RGB24BIT
++	help
++	  This uses 24-bit RGB data on VIN0 with external HSYNC & VSYNC
++	  signals.
++
+ comment "SH-Mobile System Configuration"
+ 
+ config CPU_HAS_INTEVT
+diff --git a/arch/arm/mach-shmobile/board-marzen.c b/arch/arm/mach-shmobile/board-marzen.c
+index 948f931..10ead69 100644
+--- a/arch/arm/mach-shmobile/board-marzen.c
++++ b/arch/arm/mach-shmobile/board-marzen.c
+@@ -738,7 +738,11 @@ static struct platform_device rcar_vin3_device = {
+ };
+ 
+ static struct i2c_board_info marzen_i2c_camera[] = {
++#ifndef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_24BIT_VIN
+ 	{ I2C_BOARD_INFO("ov10635", 0x30), },
++#else
++	{ I2C_BOARD_INFO("rgb24bit", 0x30), },
++#endif
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	{ I2C_BOARD_INFO("ov10635", 0x31), },
+ #else
+@@ -777,7 +781,11 @@ static struct soc_camera_link ov10635_ch0_link = {
+ 	.power  = ov10635_power,
+ 	.board_info = &marzen_i2c_camera[0],
+ 	.i2c_adapter_id = 0,
++#ifndef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_24BIT_VIN
+ 	.module_name = "ov10635",
++#else
++	.module_name = "rgb24bit",
++#endif
+ };
+ 
+ static struct soc_camera_link ov10635_ch1_link = {
+@@ -1001,6 +1009,29 @@ static void __init marzen_init(void)
+ 	gpio_request(GPIO_FN_VI0_DATA1_VI0_B1, NULL);
+ 	gpio_request(GPIO_FN_VI0_DATA0_VI0_B0, NULL);
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_24BIT_VIN
++	gpio_request(GPIO_FN_VI0_G7, NULL);
++	gpio_request(GPIO_FN_VI0_G6, NULL);
++	gpio_request(GPIO_FN_VI0_G5, NULL);
++	gpio_request(GPIO_FN_VI0_G4, NULL);
++	gpio_request(GPIO_FN_VI0_G3, NULL);
++	gpio_request(GPIO_FN_VI0_G2, NULL);
++	gpio_request(GPIO_FN_VI0_G1, NULL);
++	gpio_request(GPIO_FN_VI0_G0, NULL);
++	gpio_request(GPIO_FN_VI0_R7, NULL);
++	gpio_request(GPIO_FN_VI0_R6, NULL);
++	gpio_request(GPIO_FN_VI0_R5, NULL);
++	gpio_request(GPIO_FN_VI0_R4, NULL);
++	gpio_request(GPIO_FN_VI0_R3, NULL);
++	gpio_request(GPIO_FN_VI0_R2, NULL);
++	gpio_request(GPIO_FN_VI0_R1, NULL);
++	gpio_request(GPIO_FN_VI0_R0, NULL);
++	gpio_request(GPIO_FN_VI0_HSYNC, NULL);
++	gpio_request(GPIO_FN_VI0_VSYNC, NULL);
++	gpio_request(GPIO_FN_VI0_FIELD, NULL);
++	gpio_request(GPIO_FN_VI0_CLKENB, NULL);
++#endif
++
+ 	/* VIN1 */
+ 	gpio_request(GPIO_FN_VI1_CLK, NULL);
+ 	gpio_request(GPIO_FN_VI1_DATA7_VI1_B7, NULL);
+-- 
+1.7.9.5
+

@@ -1,0 +1,49 @@
+From 23dd9d24ae76244b231fceead221b8764469ceb0 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 12 Dec 2012 12:16:18 +0000
+Subject: [PATCH 162/215] marzen exp board: Add config options for the REE-EDC
+ Expansion Board
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/Kconfig |   24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index 4062c97..c540486 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -115,6 +115,30 @@ choice
+ 
+ endchoice
+ 
++config MACH_MARZEN_REE_EDC_EXP_BOARD
++	bool "Support REE-EDC Marzen Expansion Board"
++	depends on MACH_MARZEN
++	select VIDEO_TFP410
++	help
++	  Include support for the REE-EDC Marzen Expansion Board.
++	  The expansion board from Renesas Europe adds two HDMI outputs,
++	  4 video inputs, on-chip ethernet, and additional serial ports.
++
++config MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++	bool "Use on-chip ethernet instead of >10-bit VIN0"
++	depends on MACH_MARZEN_REE_EDC_EXP_BOARD
++	help
++	  The on-chip ethernet is multiplexed with some video in 0 (VIN0) pins.
++	  Note that the expansion board connectors CAM0 to CAM3 do not support
++	  >10-bit data widths. Therefore, is possible to use both the on-chip
++	  ethernet and four cameras, if you select this option.
++
++config MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++	bool "Use Display Unit 1 instead of VIN2"
++	depends on MACH_MARZEN_REE_EDC_EXP_BOARD
++	help
++	  Display Unit 1 is multiplexed with video in 2 (VIN2).
++
+ comment "SH-Mobile System Configuration"
+ 
+ config CPU_HAS_INTEVT
+-- 
+1.7.9.5
+

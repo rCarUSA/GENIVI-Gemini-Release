@@ -1,0 +1,936 @@
+From 8e53148cc880e2a9773cef9b853227b5e26c8fef Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Mar 2013 13:48:29 +0000
+Subject: [PATCH 188/215] ARM: shmobile: Add R-Car PCIe driver
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/Kconfig           |    6 +
+ arch/arm/mach-shmobile/Makefile          |    3 +
+ arch/arm/mach-shmobile/include/mach/io.h |   16 +
+ arch/arm/mach-shmobile/pcie-rcar.c       |  685 ++++++++++++++++++++++++++++++
+ arch/arm/mach-shmobile/pcie-rcar.h       |  166 ++++++++
+ 5 files changed, 876 insertions(+)
+ create mode 100644 arch/arm/mach-shmobile/include/mach/io.h
+ create mode 100644 arch/arm/mach-shmobile/pcie-rcar.c
+ create mode 100644 arch/arm/mach-shmobile/pcie-rcar.h
+
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index 0516c83..dfb2bca 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -258,6 +258,12 @@ endmenu
+ config SH_CLK_CPG
+ 	bool
+ 
++config RENESAS_RCAR_PCI
++	bool "R-Car PCI Express support"
++	depends on ARCH_R8A7779
++	select PCI
++	select NEED_MACH_IO_H
++
+ source "drivers/sh/Kconfig"
+ 
+ endif
+diff --git a/arch/arm/mach-shmobile/Makefile b/arch/arm/mach-shmobile/Makefile
+index add2457..7db941a 100644
+--- a/arch/arm/mach-shmobile/Makefile
++++ b/arch/arm/mach-shmobile/Makefile
+@@ -40,6 +40,9 @@ obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
+ obj-$(CONFIG_ARCH_SH7372)	+= pm-sh7372.o sleep-sh7372.o
+ obj-$(CONFIG_ARCH_R8A7779)	+= pm-r8a7779.o
+ 
++# PCI objects
++obj-$(CONFIG_RENESAS_RCAR_PCI)	+= pcie-rcar.o
++
+ # Board objects
+ obj-$(CONFIG_MACH_G3EVM)	+= board-g3evm.o
+ obj-$(CONFIG_MACH_G4EVM)	+= board-g4evm.o
+diff --git a/arch/arm/mach-shmobile/include/mach/io.h b/arch/arm/mach-shmobile/include/mach/io.h
+new file mode 100644
+index 0000000..d6822c3
+--- /dev/null
++++ b/arch/arm/mach-shmobile/include/mach/io.h
+@@ -0,0 +1,16 @@
++/*
++ * arch/arm/mach-shmobile/include/mach/io.h
++ *
++ * This file is licensed under the terms of the GNU General Public
++ * License version 2.  This program is licensed "as is" without any
++ * warranty of any kind, whether express or implied.
++ */
++
++#ifndef __ASM_ARCH_IO_H
++#define __ASM_ARCH_IO_H
++
++#define IO_SPACE_LIMIT		0xffffffff
++
++#define __io(a)  	__typesafe_io(a)
++
++#endif
+diff --git a/arch/arm/mach-shmobile/pcie-rcar.c b/arch/arm/mach-shmobile/pcie-rcar.c
+new file mode 100644
+index 0000000..667c8e2
+--- /dev/null
++++ b/arch/arm/mach-shmobile/pcie-rcar.c
+@@ -0,0 +1,685 @@
++/*
++ * PCIe functions for r8a7779 (R-Car H1) SoC
++ *  Copyright (C) 2013 Renesas Electronics Europe Ltd
++ *
++ * Based on:
++ *  arch/sh/drivers/pci/pcie-sh7786.c
++ *  arch/sh/drivers/pci/ops-sh7786.c
++ *
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ */
++
++#include <linux/pci.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/io.h>
++#include <linux/platform_device.h>
++#include <mach/irqs.h>
++#include <asm/mach/pci.h>
++#include <pcie-rcar.h>
++
++static struct resource rcar_pci0_resources[] = {
++	{
++		.name	= "PCIe0 IO",
++		.start	= 0xfe100000,
++		.end	= 0xfe100000 + SZ_1M - 1,
++		.flags	= IORESOURCE_IO,
++	}, {
++		.name	= "PCIe0 MEM 1",
++		.start	= 0xfe200000,
++		.end	= 0xfe200000 + SZ_2M - 1,
++		.flags	= IORESOURCE_MEM,
++	}, {
++		.name	= "PCIe0 MEM 2",
++		.start	= 0x20000000,
++		.end	= 0x20000000 + SZ_512M - 1,
++		.flags	= IORESOURCE_MEM,
++	}, {
++		.name	= "PCIe0 MEM 3",
++		.start	= 0xc0000000,
++		.end	= 0xc0000000 + SZ_512M - 1,
++		.flags	= IORESOURCE_MEM,
++	},
++};
++
++struct rcar_pcie_port {
++	int			index;
++	u8			root_bus_nr;
++	void __iomem		*base;
++	int			endpoint;
++	struct resource		*resources;
++	int			nr_resources;
++};
++
++struct rcar_pcie_info {
++	struct rcar_pcie_port	port[1];
++	int			num_ports;
++	void __iomem		*regs;
++	int			irq;
++	struct clk		*pciec_clk;
++};
++
++static struct rcar_pcie_info rcar_pcie = {};
++
++DEFINE_RAW_SPINLOCK(pci_config_lock);
++
++
++static struct rcar_pcie_port *bus_to_port(int bus)
++{
++	int i;
++
++	for (i = rcar_pcie.num_ports - 1; i >= 0; i--) {
++		int rbus = rcar_pcie.port[i].root_bus_nr;
++		if (rbus != -1 && rbus == bus)
++			break;
++	}
++
++	return i >= 0 ? rcar_pcie.port + i : NULL;
++}
++
++static void
++pci_write_reg(struct rcar_pcie_port *chan, unsigned long val, unsigned long reg)
++{
++	iowrite32(val, chan->base + reg);
++}
++
++static unsigned long
++pci_read_reg(struct rcar_pcie_port *chan, unsigned long reg)
++{
++	return ioread32(chan->base + reg);
++}
++
++
++
++enum {
++	PCI_ACCESS_READ,
++	PCI_ACCESS_WRITE,
++};
++
++static int rcar_pcie_config_access(unsigned char access_type,
++		struct pci_bus *bus, unsigned int devfn, int where, u32 *data)
++{
++	struct rcar_pcie_port *chan = bus_to_port(bus->number);
++	int dev, func, type, reg;
++
++	dev = PCI_SLOT(devfn);
++	func = PCI_FUNC(devfn);
++	type = !!bus->parent;
++	reg = where & ~3;
++
++	if (bus->number > 255 || dev > 31 || func > 7)
++		return PCIBIOS_FUNC_NOT_SUPPORTED;
++
++	/*
++	 * While each channel has its own memory-mapped extended config
++	 * space, it's generally only accessible when in endpoint mode.
++	 * When in root complex mode, the controller is unable to target
++	 * itself with either type 0 or type 1 accesses, and indeed, any
++	 * controller initiated target transfer to its own config space
++	 * result in a completer abort.
++	 *
++	 * Each channel effectively only supports a single device, but as
++	 * the same channel <-> device access works for any PCI_SLOT()
++	 * value, we cheat a bit here and bind the controller's config
++	 * space to devfn 0 in order to enable self-enumeration. In this
++	 * case the regular PAR/PDR path is sidelined and the mangled
++	 * config access itself is initiated as a SuperHyway transaction.
++	 */
++	if (pci_is_root_bus(bus)) {
++		if (dev == 0) {
++			if (reg > 0xA8/4 && reg < 0x100/4)
++				return PCIBIOS_DEVICE_NOT_FOUND;
++
++			if (access_type == PCI_ACCESS_READ)
++				*data = pci_read_reg(chan, RCAR_PCIEPCICONF(reg));
++			else
++				pci_write_reg(chan, *data, RCAR_PCIEPCICONF(reg));
++
++			return PCIBIOS_SUCCESSFUL;
++		} else if (dev > 1)
++			return PCIBIOS_DEVICE_NOT_FOUND;
++	}
++
++	/* Clear errors */
++	pci_write_reg(chan, pci_read_reg(chan, RCAR_PCIEERRFR), RCAR_PCIEERRFR);
++
++	/* Set the PIO address */
++	pci_write_reg(chan, (bus->number << 24) | (dev << 19) |
++				(func << 16) | reg, RCAR_PCIEPAR);
++
++	/* Enable the configuration access */
++	pci_write_reg(chan, MASK_CCIE | (type << BITS_TYPE), RCAR_PCIEPCTLR);
++
++	/* Check for errors */
++	if (pci_read_reg(chan, RCAR_PCIEERRFR) & 0x10)
++		return PCIBIOS_DEVICE_NOT_FOUND;
++
++	/* Check for master and target aborts */
++	if (pci_read_reg(chan, RCAR_PCIEPCICONF(1)) & ((1 << 29) | (1 << 28)))
++		return PCIBIOS_DEVICE_NOT_FOUND;
++
++	if (access_type == PCI_ACCESS_READ)
++		*data = pci_read_reg(chan, RCAR_PCIEPDR);
++	else
++		pci_write_reg(chan, *data, RCAR_PCIEPDR);
++
++	/* Disable the configuration access */
++	pci_write_reg(chan, 0, RCAR_PCIEPCTLR);
++
++	return PCIBIOS_SUCCESSFUL;
++}
++
++static int rcar_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
++				int where, int size, u32 *val)
++{
++	unsigned long flags;
++	int ret;
++	u32 data;
++
++        if ((size == 2) && (where & 1))
++		return PCIBIOS_BAD_REGISTER_NUMBER;
++	else if ((size == 4) && (where & 3))
++		return PCIBIOS_BAD_REGISTER_NUMBER;
++
++	raw_spin_lock_irqsave(&pci_config_lock, flags);
++	ret = rcar_pcie_config_access(PCI_ACCESS_READ, bus,
++					devfn, where, &data);
++	if (ret != PCIBIOS_SUCCESSFUL) {
++		*val = 0xffffffff;
++		goto out;
++	}
++
++	if (size == 1)
++		*val = (data >> ((where & 3) << 3)) & 0xff;
++	else if (size == 2)
++		*val = (data >> ((where & 2) << 3)) & 0xffff;
++	else
++		*val = data;
++
++	dev_dbg(&bus->dev, "pcie-config-read: bus=%3d devfn=0x%04x "
++		"where=0x%04x size=%d val=0x%08lx\n", bus->number,
++		devfn, where, size, (unsigned long)*val);
++
++out:
++	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
++	return ret;
++}
++
++static int rcar_pcie_write_conf(struct pci_bus *bus, unsigned int devfn,
++				 int where, int size, u32 val)
++{
++	unsigned long flags;
++	int shift, ret;
++	u32 data;
++
++        if ((size == 2) && (where & 1))
++		return PCIBIOS_BAD_REGISTER_NUMBER;
++	else if ((size == 4) && (where & 3))
++		return PCIBIOS_BAD_REGISTER_NUMBER;
++
++	raw_spin_lock_irqsave(&pci_config_lock, flags);
++	ret = rcar_pcie_config_access(PCI_ACCESS_READ, bus,
++					devfn, where, &data);
++	if (ret != PCIBIOS_SUCCESSFUL)
++		goto out;
++
++	dev_dbg(&bus->dev, "pcie-config-write: bus=%3d devfn=0x%04x "
++		"where=0x%04x size=%d val=%08lx\n", bus->number,
++		devfn, where, size, (unsigned long)val);
++
++	if (size == 1) {
++		shift = (where & 3) << 3;
++		data &= ~(0xff << shift);
++		data |= ((val & 0xff) << shift);
++	} else if (size == 2) {
++		shift = (where & 2) << 3;
++		data &= ~(0xffff << shift);
++		data |= ((val & 0xffff) << shift);
++	} else
++		data = val;
++
++	ret = rcar_pcie_config_access(PCI_ACCESS_WRITE, bus,
++					devfn, where, &data);
++out:
++	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
++	return ret;
++}
++
++static struct pci_ops rcar_pcie_ops = {
++	.read	= rcar_pcie_read_conf,
++	.write	= rcar_pcie_write_conf,
++};
++
++
++static void __devinit rc_pci_fixup(struct pci_dev *dev)
++{
++	/*
++	 * Prevent enumeration of root complex.
++	 */
++	if (dev->bus->parent == NULL && dev->devfn == 0) {
++		int i;
++
++		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
++			dev->resource[i].start = 0;
++			dev->resource[i].end   = 0;
++			dev->resource[i].flags = 0;
++		}
++	}
++}
++DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_RENESAS, PCI_DEVICE_ID_RENESAS_RCAR, rc_pci_fixup);
++
++static int rcar_pcie_setup(int nr, struct pci_sys_data *sys)
++{
++	struct rcar_pcie_port *pp;
++	int i, win;
++
++	if (nr >= rcar_pcie.num_ports)
++		return 0;
++
++	pp = rcar_pcie.port + nr;
++	pp->root_bus_nr = sys->busnr;
++
++	pp->resources = rcar_pci0_resources;
++	pp->nr_resources = ARRAY_SIZE(rcar_pci0_resources);
++
++	for (i=0; i<pp->nr_resources; i++) {
++		struct resource *res = &rcar_pci0_resources[i];
++
++		if (res->flags & IORESOURCE_IO) {
++			if (request_resource(&ioport_resource, res) < 0)
++				goto out;
++		} else {
++			if (request_resource(&iomem_resource, res) < 0)
++				goto out;
++		}
++	}
++
++	for (i=0; i<pp->nr_resources; i++) {
++		struct resource *res = &rcar_pci0_resources[i];
++
++		if (res->flags == IORESOURCE_IO)
++			pci_add_resource_offset(&sys->resources,
++				res, sys->io_offset);
++		else
++			pci_add_resource_offset(&sys->resources,
++				res, sys->mem_offset);
++	}
++
++	for (i = win = 0; i < pp->nr_resources; i++) {
++		struct resource *res = pp->resources + i;
++		resource_size_t size;
++		u32 mask;
++
++		pci_write_reg(pp, 0x00000000, RCAR_PCIEPTCTLR(win));
++
++		/*
++		 * The PAMR mask is calculated in units of 128Bytes, which
++		 * keeps things pretty simple.
++		 */
++		size = resource_size(res);
++		mask = (roundup_pow_of_two(size) / SZ_128) - 1;
++		pci_write_reg(pp, mask << 7, RCAR_PCIEPAMR(win));
++
++		pci_write_reg(pp, upper_32_bits(res->start),
++			      RCAR_PCIEPARH(win));
++		pci_write_reg(pp, lower_32_bits(res->start),
++			      RCAR_PCIEPARL(win));
++
++		mask = MASK_PARE;
++		if (res->flags & IORESOURCE_IO)
++			mask |= MASK_SPC;
++
++		pci_write_reg(pp, mask, RCAR_PCIEPTCTLR(win));
++
++		win++;
++	}
++
++	return 1;
++
++out:
++	printk("pcie: request_resource failed\n");
++	for (--i; i >= 0; i--)
++		release_resource(&rcar_pci0_resources[i]);
++
++	return 0;
++}
++
++static int rcar_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
++{
++	return rcar_pcie.irq;
++}
++
++static struct pci_bus __init *rcar_pcie_scan_bus(int nr,
++						  struct pci_sys_data *sys)
++{
++	struct rcar_pcie_port *pp;
++
++	if (nr >= rcar_pcie.num_ports)
++		return NULL;
++
++	pp = rcar_pcie.port + nr;
++	pp->root_bus_nr = sys->busnr;
++
++	return pci_scan_root_bus(NULL, sys->busnr, &rcar_pcie_ops, sys,
++				 &sys->resources);
++}
++
++static struct hw_pci rcar_pcie_hw __initdata = {
++	.nr_controllers	= 1,
++	.setup		= rcar_pcie_setup,
++	.scan		= rcar_pcie_scan_bus,
++	.swizzle	= pci_std_swizzle,
++	.map_irq	= rcar_pcie_map_irq,
++};
++
++
++static int __init phy_wait_for_ack(struct rcar_pcie_port *chan)
++{
++	unsigned int timeout = 100;
++
++	while (timeout--) {
++		if (pci_read_reg(chan, RCAR_PCIEPHYADRR) & (1 << BITS_ACK))
++			return 0;
++
++		udelay(100);
++	}
++
++	printk(KERN_ERR "%s: Access to PCIe phy timed out!", __func__);
++
++	return -ETIMEDOUT;
++}
++
++static void __init phy_write_reg(struct rcar_pcie_port *chan, unsigned int rate, unsigned int addr,
++				 unsigned int lane, unsigned int data)
++{
++	unsigned long phyaddr;
++
++	phyaddr = (1 << BITS_CMD) + ((rate & 1) << BITS_RATE) +
++			((lane & 0xf) << BITS_LANE) +
++			((addr & 0xff) << BITS_ADR);
++
++	/* Set write data */
++	pci_write_reg(chan, data, RCAR_PCIEPHYDOUTR);
++	pci_write_reg(chan, phyaddr, RCAR_PCIEPHYADRR);
++
++	phy_wait_for_ack(chan);
++
++	/* Clear command */
++	pci_write_reg(chan, 0, RCAR_PCIEPHYDOUTR);
++	pci_write_reg(chan, 0, RCAR_PCIEPHYADRR);
++
++	phy_wait_for_ack(chan);
++}
++
++static int __init phy_init(struct rcar_pcie_port *chan)
++{
++	unsigned int timeout = 100;
++
++	/* Initialize the phy */
++	phy_write_reg(chan, 0, 0x42, 0x1, 0x0EC34191);
++	phy_write_reg(chan, 1, 0x42, 0x1, 0x0EC34180);
++	phy_write_reg(chan, 0, 0x43, 0x1, 0x00210188);
++	phy_write_reg(chan, 1, 0x43, 0x1, 0x00210188);
++	phy_write_reg(chan, 0, 0x44, 0x1, 0x015C0014);
++	phy_write_reg(chan, 1, 0x44, 0x1, 0x015C0014);
++	phy_write_reg(chan, 1, 0x4C, 0x1, 0x786174A0);
++	phy_write_reg(chan, 1, 0x4D, 0x1, 0x048000BB);
++	phy_write_reg(chan, 0, 0x51, 0x1, 0x079EC062);
++	phy_write_reg(chan, 0, 0x52, 0x1, 0x20000000);
++	phy_write_reg(chan, 1, 0x52, 0x1, 0x20000000);
++	phy_write_reg(chan, 1, 0x56, 0x1, 0x00003806);
++
++	phy_write_reg(chan, 0, 0x60, 0x1, 0x004B03A5);
++	phy_write_reg(chan, 0, 0x64, 0x1, 0x3F0F1F0F);
++	phy_write_reg(chan, 0, 0x66, 0x1, 0x00008000);
++
++	while (timeout--) {
++		if (pci_read_reg(chan, RCAR_PCIEPHYSR))
++			return 0;
++
++		udelay(100);
++	}
++
++	return -ETIMEDOUT;
++}
++
++static int __init pci_wait_for_dl(struct rcar_pcie_port *chan)
++{
++	unsigned int timeout = 100;
++
++	while (timeout--) {
++		if ((pci_read_reg(chan, RCAR_PCIETSTR) & MASK_INT_DLLACT))
++			return 0;
++
++		udelay(100);
++	}
++
++	return -ETIMEDOUT;
++}
++
++static void __init pcie_reset(struct rcar_pcie_port *chan)
++{
++	pci_write_reg(chan, 0, RCAR_PCIETCTLR);
++}
++
++static int __init rcar_pcie_hw_init(struct rcar_pcie_port *chan)
++{
++	unsigned int data;
++	phys_addr_t memphys;
++	size_t memsize;
++	int ret;
++
++	/* Begin initialization */
++	pcie_reset(chan);
++
++	/*
++	 * Initial header for port config space is type 1, set the device
++	 * class to match. Hardware takes care of propagating the IDSETR
++	 * settings, so there is no need to bother with a quirk.
++	 */
++	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI << 16, RCAR_PCIEIDSETR1);
++
++	/* Initialize default capabilities. */
++	data = pci_read_reg(chan, RCAR_PCIEEXPCAP(0));
++	data &= ~(PCI_EXP_FLAGS_TYPE << 16);
++
++	if (chan->endpoint)
++		data |= PCI_EXP_TYPE_ENDPOINT << 20;
++	else
++		data |= PCI_EXP_TYPE_ROOT_PORT << 20;
++
++	data |= PCI_CAP_ID_EXP;
++	pci_write_reg(chan, data, RCAR_PCIEEXPCAP(0));
++
++	data = pci_read_reg(chan, RCAR_PCIEPCICONF(3));
++	if (chan->endpoint)
++		data |= 1 << 16;
++	pci_write_reg(chan, data, RCAR_PCIEPCICONF(3));
++
++	/* Enable data link layer active state reporting */
++	data = pci_read_reg(chan, RCAR_PCIEEXPCAP(3));
++	data |= PCI_EXP_LNKCAP_DLLLARC;
++	pci_write_reg(chan, data, RCAR_PCIEEXPCAP(3));
++
++	/* Enable extended sync and ASPM L0s support */
++	data = pci_read_reg(chan, RCAR_PCIEEXPCAP(4));
++	data &= ~PCI_EXP_LNKCTL_ASPMC;
++	data |= PCI_EXP_LNKCTL_ES | 1;
++	pci_write_reg(chan, data, RCAR_PCIEEXPCAP(4));
++
++	/* Write out the physical slot number */
++	data = pci_read_reg(chan, RCAR_PCIEEXPCAP(5));
++	data &= ~PCI_EXP_SLTCAP_PSN;
++	data |= (chan->index + 1) << 19;
++	pci_write_reg(chan, data, RCAR_PCIEEXPCAP(5));
++
++	/* Set the completion timer timeout to the maximum 50ms. */
++	data = pci_read_reg(chan, RCAR_PCIETLCTLR);
++	data &= ~(0x3f << 8);
++	data |= 0x32 << 8;
++	pci_write_reg(chan, data, RCAR_PCIETLCTLR);
++
++	/* Enable MAC data scrambling. */
++	data = pci_read_reg(chan, RCAR_PCIEMACCTLR);
++	data &= ~PCIEMACCTLR_SCR_DIS;
++	pci_write_reg(chan, data, RCAR_PCIEMACCTLR);
++
++	/* Next Capability Offset */
++	data = pci_read_reg(chan, RCAR_PCIEVCCAP(0));
++	data &= ~(0xfff << 20);
++	data |=  0x1b0 << 20;
++	pci_write_reg(chan, data, RCAR_PCIEVCCAP(0));
++
++	memphys = PHYS_OFFSET;
++	memsize = MEM_SIZE;
++
++	/* LAR0/LAMR0 covers up to 4GB */
++	pci_write_reg(chan, memphys, RCAR_PCIELAR(0));
++	pci_write_reg(chan, (memsize - SZ_256) | 1, RCAR_PCIELAMR(0));
++
++	/* Disable MAC data scrambling. */
++	data = pci_read_reg(chan, RCAR_PCIEMACCTLR);
++	data |= PCIEMACCTLR_SCR_DIS;
++	pci_write_reg(chan, data, RCAR_PCIEMACCTLR);
++
++	data = pci_read_reg(chan, RCAR_PCIEPCICONF(1));
++	data &= ~(PCI_STATUS_DEVSEL_MASK << 16);
++	data |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
++		(PCI_STATUS_CAP_LIST | PCI_STATUS_DEVSEL_FAST) << 16;
++	pci_write_reg(chan, data, RCAR_PCIEPCICONF(1));
++
++	/* Finish initialization */
++	data = pci_read_reg(chan, RCAR_PCIETCTLR);
++	data |= 0x1;
++	pci_write_reg(chan, data, RCAR_PCIETCTLR);
++
++	/* This will timeout if we don't have a link. */
++	ret = pci_wait_for_dl(chan);
++
++	/* Enable INTx interupts */
++	data = pci_read_reg(chan, RCAR_PCIEINTXR);
++	if (!chan->endpoint)
++		data |= 0x1 << 8;
++	pci_write_reg(chan, data, RCAR_PCIEINTXR);
++
++	data = pci_read_reg(chan, RCAR_PCIEPCICONF(15));
++	data &= ~0xFFFF;
++	data |= 0x100;
++	pci_write_reg(chan, data, RCAR_PCIEPCICONF(15));
++
++	wmb();
++
++	if (ret == 0) {
++		data = pci_read_reg(chan, RCAR_PCIEMACSR);
++		printk(KERN_NOTICE "PCI: PCIe#%d x%d link detected\n",
++		       chan->index, (data >> 20) & 0x3f);
++	} else {
++		printk(KERN_NOTICE "PCI: PCIe#%d link down\n",
++		       chan->index);
++	}
++
++	return ret;
++}
++
++static int rcar_pcie_clocks_get(struct platform_device *pdev)
++{
++	int err = 0;
++
++	rcar_pcie.pciec_clk = clk_get(&pdev->dev, "pciec");
++	if (IS_ERR(rcar_pcie.pciec_clk))
++		err = PTR_ERR(rcar_pcie.pciec_clk);
++	else
++		clk_enable(rcar_pcie.pciec_clk);
++
++	return err;
++}
++
++static void rcar_pcie_clocks_put(void)
++{
++	clk_put(rcar_pcie.pciec_clk);
++}
++
++static int __init rcar_pcie_get_resources(struct platform_device *pdev)
++{
++	struct resource *res;
++	int i;
++	int err;
++
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	i = platform_get_irq(pdev, 0);
++	if (!res || i < 0) {
++		dev_err(&pdev->dev, "cannot get platform resources\n");
++		return -ENOENT;
++	}
++	rcar_pcie.irq = i;
++
++	err = rcar_pcie_clocks_get(pdev);
++	if (err) {
++		pr_err("PCIE: failed to get clocks: %d\n", err);
++		return err;
++	}
++
++	rcar_pcie.regs = ioremap_nocache(res->start, resource_size(res));
++	if (rcar_pcie.regs == NULL) {
++		pr_err("PCIE: Failed to map PCIEC registers\n");
++		err = -ENOMEM;
++		goto err_map_reg;
++	}
++
++	return 0;
++
++err_map_reg:
++	rcar_pcie_clocks_put();
++
++	return err;
++}
++
++static int __init rcar_pcie_add_port(int index, u32 offset)
++{
++	struct rcar_pcie_port *pp;
++
++	pp = rcar_pcie.port + rcar_pcie.num_ports;
++
++	pp->endpoint = 0;
++	pp->index = -1;
++	pp->base = rcar_pcie.regs + offset;
++
++	pci_write_reg(pp, pp->endpoint, RCAR_PCIEMSR);
++
++	if (phy_init(&rcar_pcie.port[index])) {
++		printk(KERN_INFO "PCIe: port %d: phy init failed\n", index);
++		return -1;
++	}
++
++	rcar_pcie.num_ports++;
++	pp->index = index;
++	pp->root_bus_nr = -1;
++
++	if (rcar_pcie_hw_init(&rcar_pcie.port[index]))
++		return -1;
++
++	return 0;
++}
++
++int __init rcar_pcie_init(struct platform_device *pdev)
++{
++	int err;
++
++	err = rcar_pcie_get_resources(pdev);
++	if (err)
++		return err;
++
++	err = rcar_pcie_add_port(0, 0);
++	if (err)
++		return err;
++
++	pci_common_init(&rcar_pcie_hw);
++
++	return 0;
++}
+diff --git a/arch/arm/mach-shmobile/pcie-rcar.h b/arch/arm/mach-shmobile/pcie-rcar.h
+new file mode 100644
+index 0000000..4574980
+--- /dev/null
++++ b/arch/arm/mach-shmobile/pcie-rcar.h
+@@ -0,0 +1,166 @@
++/*
++ * PCI Express definitions for r8a7779 (R-Car H1) SoC
++ *  Copyright (C) 2013 Renesas Electronics Europe Ltd
++ *
++ * Based on arch/sh/drivers/pci/pcie-sh7786.h
++ *
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ */
++#ifndef __PCI_RCAR_H
++#define __PCI_RCAR_H
++
++#define	RCAR_PCIEPAR		(0x000010)
++#define		BITS_BN		(24)
++#define		MASK_BN		(0xff<<BITS_BN)
++#define		BITS_DN		(19)
++#define		MASK_DN		(0x1f<<BITS_DN)
++#define		BITS_FN		(16)
++#define		MASK_FN		(0x7<<BITS_FN)
++#define		BITS_EREGNO	(8)
++#define		MASK_EREGNO	(0xff<<BITS_EREGNO)
++#define		BITS_REGNO	(2)
++#define		MASK_REGNO	(0x3f<<BITS_REGNO)
++
++#define	RCAR_PCIEPCTLR		(0x000018)
++#define		BITS_CCIE	(31)	/*  31 CCIE */
++#define		MASK_CCIE	(1<<BITS_CCIE)
++#define		BITS_TYPE	(8)
++#define		MASK_TYPE	(1<<BITS_TYPE)
++#define		BITS_C_VC	(0)
++#define		MASK_C_VC	(1<<BITS_C_VC)
++
++#define	RCAR_PCIEPDR		(0x000020)
++#define	RCAR_PCIEMSR		(0x000028)
++#define	RCAR_PCIEINTXR		(0x000400)
++
++/* Transfer control */
++#define	RCAR_PCIETCTLR		(0x02000)
++#define		BITS_CFINT	(0)
++#define		MASK_CFINT	(1<<BITS_CFINT)
++#define	RCAR_PCIETSTR		(0x02004)
++#define		BITS_INT_DLLACT			(0)
++#define		MASK_INT_DLLACT			(1 << BITS_INT_DLLACT)
++#define	RCAR_PCIEINTR		(0x02008)
++#define	RCAR_PCIEINTER		(0x0200C)
++#define		BITS_INT_RX_ERP			(31)
++#define		MASK_INT_RX_ERP			(1<<BITS_INT_RX_ERP)
++#define		BITS_INT_RX_VCX_Posted		(30)
++#define		MASK_INT_RX_VCX_Posted		(1<<BITS_INT_RX_VCX_Posted)
++#define		BITS_INT_RX_VCX_NonPosted	(29)
++#define		MASK_INT_RX_VCX_NonPosted	(1<<BITS_INT_RX_VCX_NonPosted)
++#define		BITS_INT_RX_VCX_CPL		(28)
++#define		MASK_INT_RX_VCX_CPL		(1<<BITS_INT_RX_VCX_CPL)
++#define		BITS_INT_TX_VCX_Posted		(26)
++#define		MASK_INT_TX_VCX_Posted		(1<<BITS_INT_TX_VCX_Posted)
++#define		BITS_INT_TX_VCX_NonPosted	(25)
++#define		MASK_INT_TX_VCX_NonPosted	(1<<BITS_INT_TX_VCX_NonPosted)
++#define		BITS_INT_TX_VCX_CPL		(24)
++#define		MASK_INT_TX_VCX_CPL		(1<<BITS_INT_TX_VCX_CPL)
++#define		BITS_INT_RX_VC0_Posted		(22)
++#define		MASK_INT_RX_VC0_Posted		(1<<BITS_INT_RX_VC0_Posted)
++#define		BITS_INT_RX_VC0_NonPosted	(21)
++#define		MASK_INT_RX_VC0_NonPosted	(1<<BITS_INT_RX_VC0_NonPosted)
++#define		BITS_INT_RX_VC0_CPL		(20)
++#define		MASK_INT_RX_VC0_CPL		(1<<BITS_INT_RX_VC0_CPL)
++#define		BITS_INT_TX_VC0_Posted		(18)
++#define		MASK_INT_TX_VC0_Posted		(1<<BITS_INT_TX_VC0_Posted)
++#define		BITS_INT_TX_VC0_NonPosted	(17)
++#define		MASK_INT_TX_VC0_NonPosted	(1<<BITS_INT_TX_VC0_NonPosted)
++#define		BITS_INT_TX_VC0_CPL		(16)
++#define		MASK_INT_TX_VC0_CPL		(1<<BITS_INT_TX_VC0_CPL)
++#define		BITS_INT_RX_CTRL		(15)
++#define		MASK_INT_RX_CTRL		(1<<BITS_INT_RX_CTRL)
++#define		BITS_INT_TX_CTRL		(14)
++#define		MASK_INT_TX_CTRL		(1<<BITS_INT_TX_CTRL)
++#define		BITS_INTTL			(11)
++#define		MASK_INTTL			(1<<BITS_INTTL)
++#define		BITS_INTDL			(10)
++#define		MASK_INTDL			(1<<BITS_INTDL)
++#define		BITS_INTMAC			(9)
++#define		MASK_INTMAC			(1<<BITS_INTMAC)
++#define		BITS_INTPM			(8)
++#define		MASK_INTPM			(1<<BITS_INTPM)
++#define		BITS_INT_MESE			(5)
++#define		MASK_INT_MESE			(1<<BITS_INT_MESE)
++#define	RCAR_PCIEERRFR		(0x02020)
++#define	RCAR_PCIEERRFER		(0x02024)
++
++/* root port address */
++#define	RCAR_PCIEPRAR(x)	(0x02080 + ((x) * 0x4))
++
++/* local address reg & mask */
++#define	RCAR_PCIELAR(x)		(0x02200 + ((x) * 0x20))
++#define	RCAR_PCIELAMR(x)	(0x02208 + ((x) * 0x20))
++
++/* PCIe address reg & mask */
++#define	RCAR_PCIEPARL(x)	(0x03400 + ((x) * 0x20))
++#define	RCAR_PCIEPARH(x)	(0x03404 + ((x) * 0x20))
++#define	RCAR_PCIEPAMR(x)	(0x03408 + ((x) * 0x20))
++#define	RCAR_PCIEPTCTLR(x)	(0x0340C + ((x) * 0x20))
++#define		BITS_PARE	(31)
++#define		MASK_PARE	(0x1<<BITS_PARE)
++#define		BITS_TC		(20)
++#define		MASK_TC		(0x7<<BITS_TC)
++#define		BITS_T_VC	(16)
++#define		MASK_T_VC	(0x1<<BITS_T_VC)
++#define		BITS_LOCK	(12)
++#define		MASK_LOCK	(0x1<<BITS_LOCK)
++#define		BITS_SPC	(8)
++#define		MASK_SPC	(0x1<<BITS_SPC)
++
++/* DMA */
++#define	RCAR_PCIEDMAOR		(0x04000)
++#define	RCAR_PCIEDMPALR(x)	(0x04100 + ((x) * 0x40))
++#define	RCAR_PCIEDMPAUR(x)	(0x04104 + ((x) * 0x40))
++#define	RCAR_PCIEDMIAR(x)	(0x04108 + ((x) * 0x40))
++#define	RCAR_PCIEDMBCNTR(x)	(0x04110 + ((x) * 0x40))
++#define	RCAR_PCIEDMCCAR(x)	(0x04120 + ((x) * 0x40))
++#define	RCAR_PCIEDMCHCR(x)	(0x04128 + ((x) * 0x40))
++#define	RCAR_PCIEDMCHSR(x)	(0x0412C + ((x) * 0x40))
++#define	RCAR_PCIEDMCHC2R(x)	(0x04130 + ((x) * 0x40))
++
++/* Configuration */
++#define	RCAR_PCIEPCICONF(x)	(0x010000 + ((x) * 0x4))
++
++#define	RCAR_PCIEPMCAP0		(0x010040)
++#define	RCAR_PCIEPMCAP1		(0x010044)
++#define	RCAR_PCIEMSICAP(x)	(0x010050 + ((x) * 0x4))
++#define	RCAR_PCIEEXPCAP(x)	(0x010070 + ((x) * 0x4))
++#define	RCAR_PCIEVCCAP(x)	(0x010100 + ((x) * 0x4))
++
++#define	RCAR_PCIENUMCAP0	(0x0101B0)
++#define	RCAR_PCIENUMCAP1	(0x0101B4)
++#define	RCAR_PCIENUMCAP2	(0x0101B8)
++
++#define	RCAR_PCIEIDSETR0	(0x011000)
++#define	RCAR_PCIEIDSETR1	(0x011004)
++#define	RCAR_PCIEDSERSETR0	(0x01102C)
++#define	RCAR_PCIEDSERSETR1	(0x011030)
++#define	RCAR_PCIETLCTLR		(0x011048)
++#define	RCAR_PCIEMACSR		(0x011054)
++#define	RCAR_PCIEMACCTLR	(0x011058)
++#define		PCIEMACCTLR_SCR_DIS	(1 << 27)	/* scramble disable */
++#define	RCAR_PCIEPMSTR		(0x01105C)
++#define	RCAR_PCIEPMCTLR		(0x011060)
++#define	RCAR_PCIEMACINTENR	(0x01106C)
++#define	RCAR_PCIEPMINTENR	(0x011070)
++
++/* PHY */
++#define	RCAR_PCIEPHYCTLR	(0x040008)
++#define	RCAR_PCIEPHYADRR	(0x04000C)
++#define		BITS_ACK	(24)
++#define		MASK_ACK	(1<<BITS_ACK)
++#define		BITS_CMD	(16)
++#define		MASK_CMD	(0x03<<BITS_CMD)
++#define		BITS_RATE	(12)
++#define		MASK_RATE	(0x01<<BITS_RATE)
++#define		BITS_LANE	(8)
++#define		MASK_LANE	(0x0f<<BITS_LANE)
++#define		BITS_ADR	(0)
++#define		MASK_ADR	(0xff<<BITS_ADR)
++#define	RCAR_PCIEPHYDOUTR	(0x040014)
++#define	RCAR_PCIEPHYSR		(0x040018)
++
++#endif /* __PCI_RCAR_H */
+-- 
+1.7.9.5
+

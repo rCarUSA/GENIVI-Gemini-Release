@@ -1,0 +1,224 @@
+From 22a866267796cc0f5678f856b3e3840be2a7b42e Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 10:23:57 +0000
+Subject: [PATCH 114/215] hpbdma: Use more descriptive names for variables &
+ labels
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c   |   76 +++++++++++++++++++++----------------------
+ include/linux/rcar-hpbdma.h |    2 +-
+ 2 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 4e04914..e728167 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -73,26 +73,26 @@ static void dmadcmdr_write(struct hpb_dmae_device *hpbdev, u32 data)
+ 
+ static void dmahsrstr_write(struct hpb_dmae_device *hpbdev, u32 ch)
+ {
+-	__raw_writel(0x01, hpbdev->comm_reg + HSRSTR(ch) / sizeof(u32));
++	__raw_writel(0x01, hpbdev->common_reg + HSRSTR(ch) / sizeof(u32));
+ }
+ 
+ static u32 dmadintsr_read(struct hpb_dmae_device *hpbdev, u32 ch)
+ {
+ 	if (ch < 32)
+-		return (__raw_readl(hpbdev->comm_reg + DINTSR0 / sizeof(u32))
++		return (__raw_readl(hpbdev->common_reg + DINTSR0 / sizeof(u32))
+ 			 >> ch) & 0x01;
+ 	else
+-		return (__raw_readl(hpbdev->comm_reg + DINTSR1 / sizeof(u32))
++		return (__raw_readl(hpbdev->common_reg + DINTSR1 / sizeof(u32))
+ 			 >> (ch - 32)) & 0x01;
+ }
+ 
+ static void dmadintcr_write(struct hpb_dmae_device *hpbdev, u32 ch)
+ {
+ 	if (ch < 32)
+-		__raw_writel((0x01 << ch), hpbdev->comm_reg + DINTCR0
++		__raw_writel((0x01 << ch), hpbdev->common_reg + DINTCR0
+ 			 / sizeof(u32));
+ 	else
+-		__raw_writel((0x01 << (ch-32)), hpbdev->comm_reg + DINTCR1
++		__raw_writel((0x01 << (ch-32)), hpbdev->common_reg + DINTCR1
+ 			 / sizeof(u32));
+ }
+ 
+@@ -102,13 +102,13 @@ static void dmae_enable_int(struct hpb_dmae_device *hpbdev, u32 dmach)
+ 
+ 	spin_lock_bh(&hpbdev->reg_lock);
+ 	if (dmach < 32) {
+-		intreg = __raw_readl(hpbdev->comm_reg + DINTMR0 / sizeof(u32));
++		intreg = __raw_readl(hpbdev->common_reg + DINTMR0 / sizeof(u32));
+ 		__raw_writel(((0x01 << dmach) | intreg),
+-			hpbdev->comm_reg + DINTMR0 / sizeof(u32));
++			hpbdev->common_reg + DINTMR0 / sizeof(u32));
+ 	} else {
+-		intreg = __raw_readl(hpbdev->comm_reg + DINTMR1 / sizeof(u32));
++		intreg = __raw_readl(hpbdev->common_reg + DINTMR1 / sizeof(u32));
+ 		__raw_writel(((0x01 << (dmach-32)) | intreg),
+-			hpbdev->comm_reg + DINTMR1 / sizeof(u32));
++			hpbdev->common_reg + DINTMR1 / sizeof(u32));
+ 	}
+ 	spin_unlock_bh(&hpbdev->reg_lock);
+ }
+@@ -156,27 +156,27 @@ static void dmae_select_shpt(struct hpb_dmae_device *hpbdev, u32 dmach,
+ 	spin_lock_bh(&hpbdev->reg_lock);
+ 	if (flags & HPB_DMAE_SET_SHPT1) { /* select SuperHywayPort1 */
+ 		if (dmach < 32) {
+-			reg = __raw_readl(hpbdev->comm_reg +
++			reg = __raw_readl(hpbdev->common_reg +
+ 					HPB_DMSHPT0 / sizeof(u32));
+ 			__raw_writel(((0x01 << dmach) | reg),
+-				hpbdev->comm_reg + HPB_DMSHPT0 / sizeof(u32));
++				hpbdev->common_reg + HPB_DMSHPT0 / sizeof(u32));
+ 		} else {
+-			reg = __raw_readl(hpbdev->comm_reg +
++			reg = __raw_readl(hpbdev->common_reg +
+ 					HPB_DMSHPT1 / sizeof(u32));
+ 			__raw_writel(((0x01 << (dmach-32)) | reg),
+-				hpbdev->comm_reg + HPB_DMSHPT1 / sizeof(u32));
++				hpbdev->common_reg + HPB_DMSHPT1 / sizeof(u32));
+ 		}
+ 	} else { /* select SuperHywayPort0 */
+ 		if (dmach < 32) {
+-			reg = __raw_readl(hpbdev->comm_reg +
++			reg = __raw_readl(hpbdev->common_reg +
+ 					HPB_DMSHPT0 / sizeof(u32));
+ 			__raw_writel((~(0x01 << dmach) & reg),
+-				hpbdev->comm_reg + HPB_DMSHPT0 / sizeof(u32));
++				hpbdev->common_reg + HPB_DMSHPT0 / sizeof(u32));
+ 		} else {
+-			reg = __raw_readl(hpbdev->comm_reg +
++			reg = __raw_readl(hpbdev->common_reg +
+ 					HPB_DMSHPT1 / sizeof(u32));
+ 			__raw_writel((~(0x01 << (dmach-32)) & reg),
+-				hpbdev->comm_reg + HPB_DMSHPT1 / sizeof(u32));
++				hpbdev->common_reg + HPB_DMSHPT1 / sizeof(u32));
+ 		}
+ 	}
+ 	spin_unlock_bh(&hpbdev->reg_lock);
+@@ -1083,15 +1083,15 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 	struct hpb_dmae_pdata *pdata = pdev->dev.platform_data;
+ 	int err, i;
+ 	struct hpb_dmae_device *hpbdev;
+-	struct resource *chan, *comm, *rest, *mode, *irq_res;
++	struct resource *chan, *common, *reset, *mode, *irq_res;
+ 
+ 	/* get platform data */
+ 	if (!pdata || !pdata->channel_num)
+ 		return -ENODEV;
+ 
+ 	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	comm = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+-	rest = platform_get_resource(pdev, IORESOURCE_MEM, 2);
++	common = platform_get_resource(pdev, IORESOURCE_MEM, 1);
++	reset = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+ 	mode = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+ 
+ 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+@@ -1103,18 +1103,18 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 		return -EBUSY;
+ 	}
+ 
+-	if (!request_mem_region(comm->start, resource_size(comm), pdev->name)) {
++	if (!request_mem_region(common->start, resource_size(common), pdev->name)) {
+ 		dev_err(&pdev->dev,
+ 			"DMAC Common Register region already claimed\n");
+ 		err = -EBUSY;
+-		goto ermrcomm;
++		goto ermrcommon;
+ 	}
+ 
+-	if (!request_mem_region(rest->start, resource_size(rest), pdev->name)) {
++	if (!request_mem_region(reset->start, resource_size(reset), pdev->name)) {
+ 		dev_err(&pdev->dev,
+ 			"DMAC Async reset Register region already claimed\n");
+ 		err = -EBUSY;
+-		goto ermrrest;
++		goto ermrreset;
+ 	}
+ 
+ 	if (!request_mem_region(mode->start, resource_size(mode), pdev->name)) {
+@@ -1137,13 +1137,13 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 	if (!hpbdev->chan_reg)
+ 		goto emapchan;
+ 
+-	hpbdev->comm_reg = ioremap(comm->start, resource_size(comm));
+-	if (!hpbdev->comm_reg)
+-		goto emapcomm;
++	hpbdev->common_reg = ioremap(common->start, resource_size(common));
++	if (!hpbdev->common_reg)
++		goto emapcommon;
+ 
+-	hpbdev->reset_reg = ioremap(rest->start, resource_size(rest));
++	hpbdev->reset_reg = ioremap(reset->start, resource_size(reset));
+ 	if (!hpbdev->reset_reg)
+-		goto emaprest;
++		goto emapreset;
+ 
+ 	hpbdev->mode_reg = ioremap(mode->start, resource_size(mode));
+ 	if (!hpbdev->mode_reg)
+@@ -1164,7 +1164,7 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 
+ 	dma_cap_set(DMA_MEMCPY, hpbdev->common.cap_mask);
+ 
+-	if (comm)
++	if (common)
+ 		dma_cap_set(DMA_SLAVE, hpbdev->common.cap_mask);
+ 
+ 	hpbdev->common.device_alloc_chan_resources
+@@ -1198,19 +1198,19 @@ rst_err:
+ 	iounmap(hpbdev->mode_reg);
+ emapmode:
+ 	iounmap(hpbdev->reset_reg);
+-emaprest:
+-	iounmap(hpbdev->comm_reg);
+-emapcomm:
++emapreset:
++	iounmap(hpbdev->common_reg);
++emapcommon:
+ 	iounmap(hpbdev->chan_reg);
+ emapchan:
+ 	kfree(hpbdev);
+ ealloc:
+ 	release_mem_region(mode->start, resource_size(mode));
+ ermrmode:
+-	release_mem_region(rest->start, resource_size(rest));
+-ermrrest:
+-	release_mem_region(comm->start, resource_size(comm));
+-ermrcomm:
++	release_mem_region(reset->start, resource_size(reset));
++ermrreset:
++	release_mem_region(common->start, resource_size(common));
++ermrcommon:
+ 	release_mem_region(chan->start, resource_size(chan));
+ 
+ 	return err;
+@@ -1234,7 +1234,7 @@ static int __exit hpb_dmae_remove(struct platform_device *pdev)
+ 
+ 	iounmap(hpbdev->mode_reg);
+ 	iounmap(hpbdev->reset_reg);
+-	iounmap(hpbdev->comm_reg);
++	iounmap(hpbdev->common_reg);
+ 	iounmap(hpbdev->chan_reg);
+ 
+ 	kfree(hpbdev);
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index 94fa39c..e5e5750 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -198,7 +198,7 @@ struct hpb_dmae_device {
+ 	struct hpb_dmae_chan *chan[HPB_DMAC_USE_CHANNELS];
+ 	struct hpb_dmae_pdata *pdata;
+ 	u32 __iomem *chan_reg;
+-	u32 __iomem *comm_reg;
++	u32 __iomem *common_reg;
+ 	u32 __iomem *reset_reg;
+ 	u32 __iomem *mode_reg;
+ };
+-- 
+1.7.9.5
+

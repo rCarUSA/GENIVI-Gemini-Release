@@ -1,0 +1,58 @@
+From 1dd642a24f9dd9aac31200cf05a4a5a1a70b9376 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 17:35:02 +0700
+Subject: [PATCH 197/215] h1lcb change IRQ1 pin for boards with series number
+ above 15
+
+---
+ arch/arm/configs/h1lcb_defconfig     |    3 +++
+ arch/arm/mach-shmobile/Kconfig       |    4 ++++
+ arch/arm/mach-shmobile/board-h1lcb.c |    4 ++++
+ 3 files changed, 11 insertions(+)
+
+diff --git a/arch/arm/configs/h1lcb_defconfig b/arch/arm/configs/h1lcb_defconfig
+index 0a6e3de..84a96e3 100755
+--- a/arch/arm/configs/h1lcb_defconfig
++++ b/arch/arm/configs/h1lcb_defconfig
+@@ -160,3 +160,6 @@ CONFIG_DEBUG_INFO_REDUCED=y
+ # CONFIG_FTRACE is not set
+ CONFIG_DEBUG_USER=y
+ CONFIG_AVERAGE=y
++
++# For selecting series number of h1lcb boards
++CONFIG_SERIES_ABOVE_15=y
+\ No newline at end of file
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index 2d222b8..0feea98 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -103,6 +103,10 @@ config MACH_H1LCB
+ 	depends on ARCH_R8A7779
+ 	select ARCH_REQUIRE_GPIOLIB
+ 
++config SERIES_ABOVE_15
++	bool "Series number above 15"
++	depends on MACH_H1LCB
++
+ choice
+ 	prompt "USB-PHY workaround"
+ 	depends on MACH_MARZEN || MACH_H1LCB
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index 87c8311..0b5b74c 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -925,7 +925,11 @@ static void __init h1lcb_init(void)
+ 
+ 	/* LAN89218 */
+ 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
++#ifdef CONFIG_SERIES_ABOVE_15
++	gpio_request(GPIO_FN_IRQ1, NULL); /* IRQ + PME */
++#else
+ 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
++#endif
+ 
+ 	/* SD0 (CN20) */
+ 	gpio_request(GPIO_FN_SD0_CLK, NULL);
+-- 
+1.7.9.5
+

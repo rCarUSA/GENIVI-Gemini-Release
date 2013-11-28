@@ -1,0 +1,209 @@
+From 46fade86cc23a81af40b5cee227a5e8617515598 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 18 Feb 2013 08:42:14 +0000
+Subject: [PATCH 127/215] dmaengine: hpbdma: protect against the IRQ handler
+
+The IRQ handler of the shdma driver accesses common hardware registers,
+that are also accessed from other contexts. Therefore access to them
+has to be performed with interrupts disabled, not only with disabled
+bottom halves.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   46 +++++++++++++++++++++------------------------
+ 1 file changed, 21 insertions(+), 25 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 0845566..40a21e2 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -250,7 +250,7 @@ static dma_cookie_t hpb_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
+ 	dma_async_tx_callback callback = tx->callback;
+ 	dma_cookie_t cookie;
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
++	spin_lock_irq(&hpb_chan->desc_lock);
+ 
+ 	cookie = dma_cookie_assign(tx);
+ 
+@@ -281,7 +281,7 @@ static dma_cookie_t hpb_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
+ 		tx->cookie, &last->async_tx, hpb_chan->id,
+ 		desc->hw.sar, desc->hw.tcr, desc->hw.dar);
+ 
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irq(&hpb_chan->desc_lock);
+ 
+ 	return cookie;
+ }
+@@ -319,6 +319,7 @@ static const struct hpb_dmae_slave_config *hpb_dmae_find_slave(
+ }
+ static void dmae_do_tasklet(unsigned long data);
+ 
++/* Called under spin_lock_irq(&hpb_chan->desc_lock) */
+ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ {
+ 	struct hpb_desc *desc;
+@@ -326,8 +327,6 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 	struct hpb_dmae_slave *param = hpb_chan->common.private;
+ 	int id = hpb_chan->id;
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
+-
+ 	/* Find the first not transferred descriptor */
+ 	list_for_each_entry(desc, &hpb_chan->ld_queue, node) {
+ 		if (desc->mark == DESC_SUBMITTED) {
+@@ -368,8 +367,6 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 			break;
+ 		}
+ 	}
+-
+-	spin_unlock_bh(&hpb_chan->desc_lock);
+ }
+ 
+ static void dmae_do_tasklet(unsigned long data)
+@@ -378,7 +375,7 @@ static void dmae_do_tasklet(unsigned long data)
+ 	struct hpb_desc *desc;
+ 	int mode = hpb_chan->tran_mode;
+ 
+-	spin_lock(&hpb_chan->desc_lock);
++	spin_lock_irq(&hpb_chan->desc_lock);
+ 	list_for_each_entry(desc, &hpb_chan->ld_queue, node) {
+ 		if ((desc->mark == DESC_SUBMITTED && mode == TRAN_SINGLE) ||
+ 		    (desc->mark == DESC_SETTING && mode == TRAN_DOUBLE)) {
+@@ -389,10 +386,11 @@ static void dmae_do_tasklet(unsigned long data)
+ 			break;
+ 		}
+ 	}
+-	spin_unlock(&hpb_chan->desc_lock);
+ 
+-	/* clean desc */
++	/* Next desc */
+ 	hpb_chan_xfer_ld_queue(hpb_chan);
++	spin_unlock_irq(&hpb_chan->desc_lock);
++
+ 	hpb_dmae_chan_ld_cleanup(hpb_chan, false);
+ }
+ 
+@@ -518,24 +516,18 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 				(unsigned long)hpb_chan);
+ 	}
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
+ 	while (hpb_chan->descs_allocated < NR_DESCS_PER_CHANNEL) {
+-		spin_unlock_bh(&hpb_chan->desc_lock);
+ 		desc = kzalloc(sizeof(struct hpb_desc), GFP_KERNEL);
+-		if (!desc) {
+-			spin_lock_bh(&hpb_chan->desc_lock);
++		if (!desc)
+ 			break;
+-		}
+ 		dma_async_tx_descriptor_init(&desc->async_tx,
+ 					&hpb_chan->common);
+ 		desc->async_tx.tx_submit = hpb_dmae_tx_submit;
+ 		desc->mark = DESC_IDLE;
+ 
+-		spin_lock_bh(&hpb_chan->desc_lock);
+ 		list_add(&desc->node, &hpb_chan->ld_free);
+ 		hpb_chan->descs_allocated++;
+ 	}
+-	spin_unlock_bh(&hpb_chan->desc_lock);
+ 
+ 	if (!hpb_chan->descs_allocated) {
+ 		ret = -ENOMEM;
+@@ -582,12 +574,12 @@ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ 		clear_bit(param->slave_id, hpb_dmae_slave_used);
+ 	}
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
++	spin_lock_irq(&hpb_chan->desc_lock);
+ 
+ 	list_splice_init(&hpb_chan->ld_free, &list);
+ 	hpb_chan->descs_allocated = 0;
+ 
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irq(&hpb_chan->desc_lock);
+ 
+ 	if (descs > 0)
+ 		pm_runtime_put(hpb_chan->dev);
+@@ -680,6 +672,7 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_sg(
+ 	struct hpb_desc *first = NULL, *new = NULL /* compiler... */;
+ 	LIST_HEAD(tx_list);
+ 	int chunks = 0;
++	unsigned long irq_flags;
+ 	int i;
+ 
+ 	if (!sg_len)
+@@ -690,7 +683,7 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_sg(
+ 			(HPB_DMA_TCR_MAX + 1);
+ 
+ 	/* Have to lock the whole loop to protect against concurrent release */
+-	spin_lock_bh(&hpb_chan->desc_lock);
++	spin_lock_irqsave(&hpb_chan->desc_lock, irq_flags);
+ 
+ 	/*
+ 	 * Chaining:
+@@ -736,7 +729,7 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_sg(
+ 	/* Put them back on the free list, so, they don't get lost */
+ 	list_splice_tail(&tx_list, &hpb_chan->ld_free);
+ 
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irqrestore(&hpb_chan->desc_lock, irq_flags);
+ 
+ 	return &first->async_tx;
+ 
+@@ -745,7 +738,7 @@ err_get_desc:
+ 		new->mark = DESC_IDLE;
+ 	list_splice(&tx_list, &hpb_chan->ld_free);
+ 
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irqrestore(&hpb_chan->desc_lock, irq_flags);
+ 
+ 	return NULL;
+ }
+@@ -846,9 +839,10 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 	dma_cookie_t cookie = 0;
+ 	dma_async_tx_callback callback = NULL;
+ 	void *param = NULL;
++	unsigned long flags;
+ 	int mode = hpb_chan->tran_mode;
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
++	spin_lock_irqsave(&hpb_chan->desc_lock, flags);
+ 	list_for_each_entry_safe(desc, _desc, &hpb_chan->ld_queue, node) {
+ 		struct dma_async_tx_descriptor *tx = &desc->async_tx;
+ 
+@@ -923,7 +917,8 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 			list_move(&desc->node, &hpb_chan->ld_free);
+ 		}
+ 	}
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++
++	spin_unlock_irqrestore(&hpb_chan->desc_lock, flags);
+ 
+ 	if (callback)
+ 		callback(param);
+@@ -958,10 +953,11 @@ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
+ 	enum dma_status status;
++	unsigned long flags;
+ 
+ 	hpb_dmae_chan_ld_cleanup(hpb_chan, false);
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
++	spin_lock_irqsave(&hpb_chan->desc_lock, flags);
+ 
+ 	status = dma_cookie_status(chan, cookie, txstate);
+ 
+@@ -979,7 +975,7 @@ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+ 			}
+ 	}
+ 
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irqrestore(&hpb_chan->desc_lock, flags);
+ 
+ 	return status;
+ }
+-- 
+1.7.9.5
+

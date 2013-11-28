@@ -1,0 +1,92 @@
+From 7db87c5201ac75d95727ca79bdfff7b3a84fde99 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 2 Jan 2013 08:21:51 +0000
+Subject: [PATCH 156/215] ASoC: rcar: Add helper fn for clock source setup
+
+Add helper function so that we can better support boards with
+different audio configurations.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ sound/soc/rcar/sru_pcm.c |   60 +++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/sound/soc/rcar/sru_pcm.c b/sound/soc/rcar/sru_pcm.c
+index 9c04fe8..16e95cf 100644
+--- a/sound/soc/rcar/sru_pcm.c
++++ b/sound/soc/rcar/sru_pcm.c
+@@ -151,19 +151,63 @@ static void sru_or_writel(u32 data, u32 *reg)
+ 	spin_unlock(&sru_lock);
+ }
+ 
++static void sru_writel(u32 data, u32 mask, u32 *reg)
++{
++	u32 val;
++
++	spin_lock(&sru_lock);
++	val = readl(reg);
++	writel(((val & mask) | data), reg);
++	spin_unlock(&sru_lock);
++}
++
++#define ADG_AUDIO_CLKA		0
++#define ADG_AUDIO_CLKB		1
++#define ADG_AUDIO_CLKS1		2
++#define ADG_AUDIO_CLKC		4
++#define ADG_AUDIO_FIXED		5
++static void adg_setup_brgx(void __iomem *adg_io,
++	int brga_clk_source, int brgb_clk_source, int use_bgrb)
++{
++	void __iomem *ssickr = adg_io + ADG_SSICKR;
++
++	sru_writel((use_bgrb << 31) |
++		(brga_clk_source << 20) |
++		(brgb_clk_source << 16),
++		~0,
++		(u32 *)ssickr);
++}
++
++#define ADG_DIVCLK_SEL_CLK_FIXED	0
++#define ADG_DIVCLK_SEL_ACLKA		1
++#define ADG_DIVCLK_SEL_ACLKB		2
++#define ADG_DIVCLK_SEL_ACLKC		3
++#define ADG_DIVCLK_SEL_MLBCLK		4
++#define ADG_ACLK_SEL_BRGA		(1 << 4)
++#define ADG_ACLK_SEL_BRGB		(2 << 4)
++static void adg_select_ssi_clk(void __iomem *adg_io, int ssi_chan,
++	int clk_source, int denominator)
++{
++	void __iomem *audio_clk_sel = adg_io + ADG_AUDIO_CLK_SEL0;
++	int shift = (ssi_chan & 3) << 3;
++	int reg_offset = ssi_chan & ~3;
++	int divsel = ilog2(denominator) << 6;
++
++	sru_writel((divsel | clk_source) << shift,
++		~(0xff << shift),
++		(u32 *)(audio_clk_sel + reg_offset));
++}
++
+ static int adg_init(void)
+ {
+ 	FNC_ENTRY
+ 
+ 	/* BRGA/BRGB clock select */
+-	sru_or_writel((ADG_SSICK_CLKOUT_BRGA |
+-		ADG_SSICK_BRGA_AUDIO_CLKA | ADG_SSICK_BRGB_AUDIO_CLKA),
+-		(u32 *)(adg_io + ADG_SSICKR));
+-
+-	/* SSI clock setting */
+-	sru_or_writel((ADG_SEL0_SSI1_DIVCLK_CLKA |
+-		ADG_SEL0_SSI0_DIVCLK_CLKA),
+-		(u32 *)(adg_io + ADG_AUDIO_CLK_SEL0));
++	adg_setup_brgx(adg_io, ADG_AUDIO_CLKA, ADG_AUDIO_CLKA, 0);
++
++	/* SSI0/SSI1 clock setting */
++	adg_select_ssi_clk(adg_io, 0, ADG_DIVCLK_SEL_ACLKA, 1);
++	adg_select_ssi_clk(adg_io, 1, ADG_DIVCLK_SEL_ACLKA, 1);
+ 
+ 	FNC_EXIT
+ 	return 0;
+-- 
+1.7.9.5
+

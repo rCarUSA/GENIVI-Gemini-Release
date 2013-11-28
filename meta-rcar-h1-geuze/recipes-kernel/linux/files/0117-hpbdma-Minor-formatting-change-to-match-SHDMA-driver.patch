@@ -1,0 +1,61 @@
+From 95868c76e2a5b6ff08703069034ca4429dda60c6 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 14 Feb 2013 21:24:26 +0000
+Subject: [PATCH 117/215] hpbdma: Minor formatting change to match SHDMA
+ driver
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 6ac67ff..724d5e2 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -637,6 +637,7 @@ static struct hpb_desc *hpb_dmae_add_desc(struct hpb_dmae_chan *hpb_chan,
+ 	}
+ 
+ 	copy_size = min(*len, (size_t)HPB_DMA_TCR_MAX + 1);
++
+ 	new->hw.sar = *src;
+ 	new->hw.dar = *dest;
+ 	new->hw.tcr = copy_size;
+@@ -651,7 +652,7 @@ static struct hpb_desc *hpb_dmae_add_desc(struct hpb_dmae_chan *hpb_chan,
+ 	}
+ 
+ 	dev_dbg(hpb_chan->dev,
+-		"chaining (%u/%u)@%x -> %x with %p, cookie %d, hpbift %d\n",
++		"chaining (%u/%u)@%x -> %x with %p, cookie %d, shift %d\n",
+ 		copy_size, *len, *src, *dest, &new->async_tx,
+ 		new->async_tx.cookie, hpb_chan->xmit_shift);
+ 
+@@ -815,8 +816,7 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_slave_sg(
+ static int hpb_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+ 			   unsigned long arg)
+ {
+-	struct hpb_dmae_chan *hpb_chan;
+-	hpb_chan = to_hpb_chan(chan);
++	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
+ 
+ 	/* Only supports DMA_TERMINATE_ALL */
+ 	if (cmd != DMA_TERMINATE_ALL)
+@@ -925,6 +925,7 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 		     async_tx_test_ack(&desc->async_tx)) || all) {
+ 			/* Remove from ld_queue list */
+ 			desc->mark = DESC_IDLE;
++
+ 			list_move(&desc->node, &hpb_chan->ld_free);
+ 		}
+ 	}
+@@ -1037,7 +1038,6 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 	hpbdev->common.chancnt++;
+ 
+ 	hpbdev->chan[id] = new_hpb_chan;
+-
+ 	return 0;
+ }
+ 
+-- 
+1.7.9.5
+

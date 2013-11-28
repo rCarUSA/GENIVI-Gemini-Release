@@ -1,0 +1,222 @@
+From 8c939e2c1fdb9be2b4ffe743914441e90bb7132a Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 20 Dec 2012 17:18:42 +0000
+Subject: [PATCH 181/215] ASoC: rcar: New glue code for ak4648 codec on
+ Hurricane board
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ sound/soc/rcar/Kconfig       |   23 +++++--
+ sound/soc/rcar/Makefile      |    2 +
+ sound/soc/rcar/rcar_ak4648.c |  144 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 165 insertions(+), 4 deletions(-)
+ create mode 100644 sound/soc/rcar/rcar_ak4648.c
+
+diff --git a/sound/soc/rcar/Kconfig b/sound/soc/rcar/Kconfig
+index 2711436..6fa401f 100644
+--- a/sound/soc/rcar/Kconfig
++++ b/sound/soc/rcar/Kconfig
+@@ -1,16 +1,17 @@
+ menu "SoC Audio support for R-Car"
+-	depends on ARCH_RCAR || MACH_MARZEN
++	depends on ARCH_RCAR || MACH_MARZEN || MACH_HURRICANE
+ 
+ ##
+ ## Audio unit modules
+ ##
+ 
+ config SND_SOC_RCAR
+-	tristate "R-Car Marzen sound support"
++	tristate "R-Car H1 sound support"
+ 	select SND_HWDEP
+-	select SND_RCAR_AK4643
++	select SND_RCAR_AK4643 if MACH_MARZEN
++	select SND_RCAR_AK4648 if MACH_HURRICANE
+ 	help
+-	  This option enables R-Car Marzen platform sound support
++	  This option enables R-Car Marzen and Hurricane platform sound support
+ 
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called snd_soc_rcar.
+@@ -32,4 +33,18 @@ config SND_SOC_AK4643_RCAR
+ 	depends on SND_RCAR_AK4643
+ 	default y
+ 
++
++config SND_RCAR_AK4648
++	tristate "R-Car AK4648 sound support"
++	depends on SND_SOC_RCAR
++	select SND_SOC_AK4642
++	help
++	  This option enables the sound support for
++	  AK4648 unit of R-Car platform.
++
++config SND_SOC_AK4648_RCAR
++	bool
++	depends on SND_RCAR_AK4648
++	default y
++
+ endmenu
+diff --git a/sound/soc/rcar/Makefile b/sound/soc/rcar/Makefile
+index 7d5f9d5..3d03388 100644
+--- a/sound/soc/rcar/Makefile
++++ b/sound/soc/rcar/Makefile
+@@ -5,3 +5,5 @@ obj-$(CONFIG_SND_SOC_RCAR)	+= snd-soc-rcar.o
+ ## boards
+ snd-soc-rcar-ak4643-objs	:= rcar_ak4643.o
+ obj-$(CONFIG_SND_RCAR_AK4643)	+= snd-soc-rcar-ak4643.o
++snd-soc-rcar-ak4648-objs	:= rcar_ak4648.o
++obj-$(CONFIG_SND_RCAR_AK4648)	+= snd-soc-rcar-ak4648.o
+diff --git a/sound/soc/rcar/rcar_ak4648.c b/sound/soc/rcar/rcar_ak4648.c
+new file mode 100644
+index 0000000..d027907
+--- /dev/null
++++ b/sound/soc/rcar/rcar_ak4648.c
+@@ -0,0 +1,144 @@
++/*
++ * sound/soc/rcar/rcar_ak4648.c
++ *
++ * Copyright (C) 2013 Renesas Electronics Europe
++ *
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ */
++
++#include <linux/wait.h>
++#include <linux/module.h>
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/soc.h>
++
++static int rcar_hurricane_pcm_hw_params(struct snd_pcm_substream *substream,
++			      struct snd_pcm_hw_params *params)
++{
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_dai *codec_dai = rtd->codec_dai;
++	int ret = 0;
++
++	/* set PLL clock */
++	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 11289600, 0);
++	if (ret) {
++		pr_err("snd_soc_dai_set_sysclk err=%d\n", ret);
++		return ret;
++	}
++
++	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS |
++					 SND_SOC_DAIFMT_I2S);
++	if (ret)
++		pr_err("snd_soc_dai_set_fmt err=%d\n", ret);
++
++	return ret;
++}
++
++static struct snd_soc_ops rcar_hurricane_pcm_ops = {
++	.hw_params = rcar_hurricane_pcm_hw_params,
++};
++
++static struct snd_soc_dai_link rcar_codec_dai1[] = {
++	{
++		.name		= "AUDIO1",
++		.stream_name	= "AUDIO1",
++		.cpu_dai_name	= "rcar_sru_codec1",
++		.codec_dai_name	= "ak4642-hifi",
++		.platform_name	= "rcar_sru.0",
++		.codec_name	= "ak4642-codec.0-0012",
++		.ops = &rcar_hurricane_pcm_ops,
++	},
++};
++
++static const struct snd_soc_dapm_widget rcar_ak4648_dapm_widgets[] = {
++	SND_SOC_DAPM_MIC("MicIn", NULL),
++	SND_SOC_DAPM_LINE("LineIn", NULL),
++};
++
++static const struct snd_soc_dapm_route rcar_ak4648_audio_map[] = {
++	/* MicIn feeds LIN1/RIN1 */
++	{"LIN1", NULL, "MicIn"},
++	{"RIN1", NULL, "MicIn"},
++
++	/* Use mic gain & bias */
++	{"LIN1", "Mic Gain", "Mic Bias"},
++	{"RIN1", "Mic Gain", "Mic Bias"},
++
++	/* LineIn feeds LIN2/RIN2 */
++	{"LIN2", NULL, "LineIn"},
++	{"RIN2", NULL, "LineIn"},
++};
++
++static struct snd_soc_card rcar_codec_soc_card1 = {
++	.owner		= THIS_MODULE,
++	.name		= "rcar-ak4648",
++	.dai_link	= rcar_codec_dai1,
++	.num_links	= 1,
++	.dapm_widgets	= rcar_ak4648_dapm_widgets,
++	.num_dapm_widgets = ARRAY_SIZE(rcar_ak4648_dapm_widgets),
++	.dapm_routes	= rcar_ak4648_audio_map,
++	.num_dapm_routes = ARRAY_SIZE(rcar_ak4648_audio_map),
++};
++
++static struct snd_soc_dai_link rcar_codec_dai2[] = {
++	{
++		.name		= "AUDIO2",
++		.stream_name	= "AUDIO2",
++		.cpu_dai_name	= "rcar_sru_codec2",
++		.codec_dai_name	= "ak4642-hifi",
++		.platform_name	= "rcar_sru.0",
++		.codec_name	= "ak4642-codec.0-0013",
++		.ops = &rcar_hurricane_pcm_ops,
++	},
++};
++
++static struct snd_soc_card rcar_codec_soc_card2 = {
++	.owner		= THIS_MODULE,
++	.name		= "rcar-ak4648",
++	.dai_link	= rcar_codec_dai2,
++	.num_links	= 1,
++	.dapm_widgets	= rcar_ak4648_dapm_widgets,
++	.num_dapm_widgets = ARRAY_SIZE(rcar_ak4648_dapm_widgets),
++	.dapm_routes	= rcar_ak4648_audio_map,
++	.num_dapm_routes = ARRAY_SIZE(rcar_ak4648_audio_map),
++};
++
++/************************************************************************
++
++	AK4648(CODEC#1) machine driver function
++
++************************************************************************/
++static int __devinit rcar_probe(struct platform_device *pdev)
++{
++	int ret;
++
++	rcar_codec_soc_card1.dev = &pdev->dev;
++	ret = snd_soc_register_card(&rcar_codec_soc_card1);
++	if (ret) {
++		pr_err("Unable to register sound card 1\n");
++		return ret;
++	}
++
++	rcar_codec_soc_card2.dev = &pdev->dev;
++	ret = snd_soc_register_card(&rcar_codec_soc_card2);
++	if (ret)
++		pr_err("Unable to register sound card 2\n");
++
++	return ret;
++}
++
++static struct platform_driver rcar_driver = {
++	.driver = {
++		.name = "rcar_alsa_soc_platform",
++		.owner = THIS_MODULE,
++	},
++	.probe = rcar_probe,
++};
++
++module_platform_driver(rcar_driver);
++
++MODULE_LICENSE("GPL");
++MODULE_DESCRIPTION("R-Car SRU-AK4648 sound card");
++MODULE_AUTHOR("Renesas Electronics");
+-- 
+1.7.9.5
+

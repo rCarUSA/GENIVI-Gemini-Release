@@ -1,0 +1,115 @@
+From 338b70c4a980a20f3c45dca1d8c329d5635e8ee6 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 10 Sep 2012 17:59:54 +0100
+Subject: [PATCH 170/215] marzen: Add second display unit
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/board-marzen.c |   70 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-shmobile/board-marzen.c b/arch/arm/mach-shmobile/board-marzen.c
+index 85633dd..948f931 100644
+--- a/arch/arm/mach-shmobile/board-marzen.c
++++ b/arch/arm/mach-shmobile/board-marzen.c
+@@ -54,6 +54,9 @@ static struct i2c_board_info marzen_i2c_devices[] = {
+ 	{ I2C_BOARD_INFO("ak4642", 0x12), },
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	{ I2C_BOARD_INFO("tfp410", 0x3f), },
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++	{ I2C_BOARD_INFO("tfp410", 0x3e), },
++#endif
+ #endif
+ };
+ 
+@@ -296,6 +299,37 @@ static struct platform_device rcar_display_device = {
+ 	},
+ };
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++static struct resource rcar_du1_resources[] = {
++	[0] = {
++		.name	= "Display Unit 1",
++		.start	= 0xfff80000,
++		.end	= 0xfffb1007,
++		.flags	= IORESOURCE_MEM,
++	},
++	[1] = {
++		.start	= gic_spi(31),
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static struct rcar_reso_info rcar_reso_par_1 = {
++	.num_modes = ARRAY_SIZE(extra_video_modes),
++	.modes = extra_video_modes,
++};
++
++static struct platform_device rcar_display1_device = {
++	.id		= 1,
++	.name		= "rcarfb",
++	.num_resources	= ARRAY_SIZE(rcar_du1_resources),
++	.resource	= rcar_du1_resources,
++	.dev	= {
++		.platform_data = &rcar_reso_par_1,
++		.coherent_dma_mask = ~0,
++	},
++};
++#endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1 */
++
+ static u64 usb_dmamask = ~(u32)0;
+ 
+ static struct resource ehci0_resources[] = {
+@@ -823,7 +857,9 @@ static struct platform_device *marzen_devices[] __initdata = {
+ #endif
+ 	&rcar_vin1_device,
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+-#ifndef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++	&rcar_display1_device,
++#else
+ 	&rcar_vin2_device,
+ #endif
+ #endif
+@@ -1021,6 +1057,38 @@ static void __init marzen_init(void)
+ 	gpio_direction_output(GPIO_GP_4_15, 1);
+ #endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH */
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
++	/* Display Unit 1 */
++	gpio_request(GPIO_FN_DU1_DR7, NULL);
++	gpio_request(GPIO_FN_DU1_DR6, NULL);
++	gpio_request(GPIO_FN_DU1_DR5, NULL);
++	gpio_request(GPIO_FN_DU1_DR4, NULL);
++	gpio_request(GPIO_FN_DU1_DR3, NULL);
++	gpio_request(GPIO_FN_DU1_DR2, NULL);
++	gpio_request(GPIO_FN_DU1_DR1, NULL);
++	gpio_request(GPIO_FN_DU1_DR0, NULL);
++	gpio_request(GPIO_FN_DU1_DG7, NULL);
++	gpio_request(GPIO_FN_DU1_DG6, NULL);
++	gpio_request(GPIO_FN_DU1_DG5, NULL);
++	gpio_request(GPIO_FN_DU1_DG4, NULL);
++	gpio_request(GPIO_FN_DU1_DG3, NULL);
++	gpio_request(GPIO_FN_DU1_DG2, NULL);
++	gpio_request(GPIO_FN_DU1_DG1, NULL);
++	gpio_request(GPIO_FN_DU1_DG0, NULL);
++	gpio_request(GPIO_FN_DU1_DB7, NULL);
++	gpio_request(GPIO_FN_DU1_DB6, NULL);
++	gpio_request(GPIO_FN_DU1_DB5, NULL);
++	gpio_request(GPIO_FN_DU1_DB4, NULL);
++	gpio_request(GPIO_FN_DU1_DB3, NULL);
++	gpio_request(GPIO_FN_DU1_DB2, NULL);
++	gpio_request(GPIO_FN_DU1_DB1, NULL);
++	gpio_request(GPIO_FN_DU1_DB0, NULL);
++	gpio_request(GPIO_FN_DU1_EXVSYNC_DU1_VSYNC, NULL);
++	gpio_request(GPIO_FN_DU1_EXHSYNC_DU1_HSYNC, NULL);
++	gpio_request(GPIO_FN_DU1_DOTCLKOUT, NULL);
++	gpio_request(GPIO_FN_DU1_DISP, NULL);
++#endif
++
+ 	r8a7779_add_standard_devices();
+ 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
+ 
+-- 
+1.7.9.5
+

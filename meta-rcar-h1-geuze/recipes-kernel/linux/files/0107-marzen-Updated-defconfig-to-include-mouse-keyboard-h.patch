@@ -1,0 +1,30 @@
+From bb12d7fd7b4b4311839b818749f510d51cbb94b9 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 4 Jan 2013 10:25:30 +0000
+Subject: [PATCH 107/215] marzen: Updated defconfig to include mouse &
+ keyboard handling
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/configs/marzen_defconfig |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/arch/arm/configs/marzen_defconfig b/arch/arm/configs/marzen_defconfig
+index d2cc274..5d2ab54 100644
+--- a/arch/arm/configs/marzen_defconfig
++++ b/arch/arm/configs/marzen_defconfig
+@@ -86,10 +86,7 @@ CONFIG_SMC911X=y
+ CONFIG_SMSC911X=y
+ # CONFIG_NET_VENDOR_STMICRO is not set
+ # CONFIG_WLAN is not set
+-# CONFIG_INPUT_MOUSEDEV is not set
+-# CONFIG_INPUT_KEYBOARD is not set
+-# CONFIG_INPUT_MOUSE is not set
+-# CONFIG_SERIO is not set
++CONFIG_INPUT_EVDEV=y
+ # CONFIG_LEGACY_PTYS is not set
+ # CONFIG_DEVKMEM is not set
+ CONFIG_SERIAL_SH_SCI=y
+-- 
+1.7.9.5
+

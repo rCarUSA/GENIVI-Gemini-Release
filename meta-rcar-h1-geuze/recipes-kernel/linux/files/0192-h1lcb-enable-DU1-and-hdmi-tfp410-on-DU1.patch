@@ -1,0 +1,106 @@
+From 7f3c888c5608b1df39d9277a2ed4625e46f175bc Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 15:03:42 +0700
+Subject: [PATCH 192/215] h1lcb enable DU1 and hdmi tfp410 on DU1
+
+---
+ arch/arm/mach-shmobile/board-h1lcb.c |   32 --------------------------------
+ 1 file changed, 32 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index 9be7609..72cdc8d 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -53,9 +53,7 @@
+ static struct i2c_board_info h1lcb_i2c_devices[] = {
+ 	{ I2C_BOARD_INFO("ak4642", 0x12), },
+ 	{ I2C_BOARD_INFO("tfp410", 0x3f), },
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	{ I2C_BOARD_INFO("tfp410", 0x3e), },
+-#endif
+ };
+ 
+ /* Fixed 3.3V regulator to be used by SDHI0 */
+@@ -297,7 +295,6 @@ static struct platform_device rcar_display_device = {
+ 	},
+ };
+ 
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ static struct resource rcar_du1_resources[] = {
+ 	[0] = {
+ 		.name	= "Display Unit 1",
+@@ -326,7 +323,6 @@ static struct platform_device rcar_display1_device = {
+ 		.coherent_dma_mask = ~0,
+ 	},
+ };
+-#endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1 */
+ 
+ static u64 usb_dmamask = ~(u32)0;
+ 
+@@ -858,27 +854,14 @@ static struct platform_device *h1lcb_devices[] __initdata = {
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
+ 	&rcar_eth_device,
+ #endif
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	&rcar_vin0_device,
+-#endif
+ 	&rcar_vin1_device,
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	&rcar_display1_device,
+-#else
+ 	&rcar_vin2_device,
+-#endif
+-#endif
+ 	&rcar_vin3_device,
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	&rcar_camera[0],
+-#endif
+ 	&rcar_camera[1],
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+-#ifndef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	&rcar_camera[2],
+-#endif
+-#endif
+ 	&rcar_camera[3],
+ };
+ 
+@@ -1053,19 +1036,6 @@ static void __init h1lcb_init(void)
+ 	gpio_request(GPIO_FN_VI1_DATA1_VI1_B1, NULL);
+ 	gpio_request(GPIO_FN_VI1_DATA0_VI1_B0, NULL);
+ 
+-#ifndef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+-	/* VIN2 */
+-	gpio_request(GPIO_FN_VI2_CLK, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA7_VI2_B7, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA6_VI2_B6, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA5_VI2_B5, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA4_VI2_B4, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA3_VI2_B3, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA2_VI2_B2, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA1_VI2_B1, NULL);
+-	gpio_request(GPIO_FN_VI2_DATA0_VI2_B0, NULL);
+-#endif
+-
+ 	/* VIN3 */
+ 	gpio_request(GPIO_FN_VI3_CLK, NULL);
+ 	gpio_request(GPIO_FN_VI3_DATA7, NULL);
+@@ -1098,7 +1068,6 @@ static void __init h1lcb_init(void)
+ 	gpio_direction_output(GPIO_GP_4_15, 1);
+ #endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH */
+ 
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	/* Display Unit 1 */
+ 	gpio_request(GPIO_FN_DU1_DR7, NULL);
+ 	gpio_request(GPIO_FN_DU1_DR6, NULL);
+@@ -1128,7 +1097,6 @@ static void __init h1lcb_init(void)
+ 	gpio_request(GPIO_FN_DU1_EXHSYNC_DU1_HSYNC, NULL);
+ 	gpio_request(GPIO_FN_DU1_DOTCLKOUT, NULL);
+ 	gpio_request(GPIO_FN_DU1_DISP, NULL);
+-#endif
+ 
+ 	r8a7779_add_standard_devices();
+ 	platform_add_devices(h1lcb_devices, ARRAY_SIZE(h1lcb_devices));
+-- 
+1.7.9.5
+

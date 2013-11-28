@@ -1,0 +1,32 @@
+From 923bfb4792e5ea13efb987ab6f812cb4acebc8db Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 31 Jan 2013 17:25:13 +0000
+Subject: [PATCH 111/215] ARM: shmobile: r8a7779: Fix DMA use for SDHI
+
+Since platform data will set optional DMA channels to 0, this value
+is used by drivers to determine if DMA is used or not. Therefore,
+valid DMA slave IDs must start from 1.
+
+In this particular case, the SDHI driver checks for both RX & TX DMA
+slave IDs >0 and if either fail DMA is not used.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/include/mach/hpb-dmae.h |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+index 4f4547c..5181b22 100644
+--- a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
++++ b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+@@ -24,6 +24,7 @@ extern struct platform_device rcar_dma_device;
+ 
+ /* DMA slave IDs */
+ enum {
++	HPBDMA_SLAVE_INVALID,		/* DMA slave ID 0 means no DMA */
+ 	HPBDMA_SLAVE_SDHI0_TX,		/*Ch.21*/
+ 	HPBDMA_SLAVE_SDHI0_RX,		/*Ch.22*/
+ 	HPBDMA_SLAVE_SSI0_TX_ST,	/*Ch.28*/
+-- 
+1.7.9.5
+

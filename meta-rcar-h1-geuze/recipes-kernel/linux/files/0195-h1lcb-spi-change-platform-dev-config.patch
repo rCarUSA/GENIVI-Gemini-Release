@@ -1,0 +1,60 @@
+From 57a60ddacffe3a844f3eff2ec77e9b4879f23f18 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 15:45:51 +0700
+Subject: [PATCH 195/215] h1lcb spi change platform dev config
+
+---
+ arch/arm/mach-shmobile/board-h1lcb.c |   24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index a1d5ac7..fa25e13 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -211,9 +211,21 @@ static struct resource hspi_resources[] = {
+ 		.end		= 0xFFFC7018 - 1,
+ 		.flags		= IORESOURCE_MEM,
+ 	},
++	{
++		.start	= gic_spi(73),
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static struct sh_hspi_info hspi0_pdata = {
++	.dma_tx_id = HPBDMA_SLAVE_HSPI0_TX,
++	.dma_rx_id = HPBDMA_SLAVE_HSPI0_RX,
+ };
+ 
+ static struct platform_device hspi_device = {
++	.dev = {
++		.platform_data = &hspi0_pdata,
++	},
+ 	.name	= "sh-hspi",
+ 	.id	= 0,
+ 	.resource	= hspi_resources,
+@@ -226,9 +238,21 @@ static struct resource hspi2_resources[] = {
+ 		.end		= 0xFFFC6018 - 1,
+ 		.flags		= IORESOURCE_MEM,
+ 	},
++	{
++		.start	= gic_spi(75),
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static struct sh_hspi_info hspi2_pdata = {
++	.dma_tx_id = HPBDMA_SLAVE_HSPI2_TX,
++	.dma_rx_id = HPBDMA_SLAVE_HSPI2_RX,
+ };
+ 
+ static struct platform_device hspi2_device = {
++	.dev = {
++		.platform_data = &hspi2_pdata,
++	},
+ 	.name	= "sh-hspi",
+ 	.id	= 2,
+ 	.resource	= hspi2_resources,
+-- 
+1.7.9.5
+

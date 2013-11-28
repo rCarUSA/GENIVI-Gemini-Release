@@ -1,0 +1,30 @@
+From 1c8408bde2fed9371d71426290312d2d5a522435 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Tue, 8 Jan 2013 17:22:30 +0000
+Subject: [PATCH 109/215] marzen: Increase the default size of CMA pool to
+ 128MB
+
+When dealing with SGX, triple buffered frame buffers and quad v4l2
+camera inputs, we really need a little more DMA coherent memory.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/configs/marzen_defconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/configs/marzen_defconfig b/arch/arm/configs/marzen_defconfig
+index 5d2ab54..c926af6 100644
+--- a/arch/arm/configs/marzen_defconfig
++++ b/arch/arm/configs/marzen_defconfig
+@@ -69,7 +69,7 @@ CONFIG_DEVTMPFS_MOUNT=y
+ # CONFIG_STANDALONE is not set
+ # CONFIG_PREVENT_FIRMWARE_BUILD is not set
+ # CONFIG_FW_LOADER is not set
+-CONFIG_CMA_SIZE_MBYTES=64
++CONFIG_CMA_SIZE_MBYTES=128
+ CONFIG_BLK_DEV_LOOP=y
+ CONFIG_BLK_DEV_SD=y
+ CONFIG_BLK_DEV_SR=y
+-- 
+1.7.9.5
+

@@ -1,0 +1,156 @@
+From 24a1a5b5587c5fb4f53eebf19ab7f075b6e46101 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 18 Feb 2013 08:41:55 +0000
+Subject: [PATCH 126/215] dmaengine: hpbdma: First set of locking fixes
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 9503f53..0845566 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -101,11 +101,11 @@ static void dmae_enable_int(struct hpb_dmae_device *hpbdev, u32 ch)
+ 	u32 pos = ch & 31;
+ 	int val;
+ 
+-	spin_lock_bh(&hpbdev->reg_lock);
++	spin_lock_irq(&hpbdev->reg_lock);
+ 	val = __raw_readl(reg);
+ 	val |= (1 << pos);
+ 	__raw_writel(val, reg);
+-	spin_unlock_bh(&hpbdev->reg_lock);
++	spin_unlock_irq(&hpbdev->reg_lock);
+ }
+ 
+ static void dmae_async_reset(struct hpb_dmae_device *hpbdev, u32 data)
+@@ -113,7 +113,7 @@ static void dmae_async_reset(struct hpb_dmae_device *hpbdev, u32 data)
+ 	u32 rstr;
+ 	int timeout = 10000;	/* 100ms */
+ 
+-	spin_lock_bh(&hpbdev->reg_lock);
++	spin_lock_irq(&hpbdev->reg_lock);
+ 	rstr = __raw_readl(hpbdev->reset_reg);
+ 	rstr |= data;
+ 	__raw_writel(rstr, hpbdev->reset_reg);
+@@ -127,7 +127,7 @@ static void dmae_async_reset(struct hpb_dmae_device *hpbdev, u32 data)
+ 
+ 	rstr &= ~data;
+ 	__raw_writel(rstr, hpbdev->reset_reg);
+-	spin_unlock_bh(&hpbdev->reg_lock);
++	spin_unlock_irq(&hpbdev->reg_lock);
+ }
+ 
+ static void dmae_set_async_mode(struct hpb_dmae_device *hpbdev,
+@@ -135,12 +135,12 @@ static void dmae_set_async_mode(struct hpb_dmae_device *hpbdev,
+ {
+ 	u32 mode;
+ 
+-	spin_lock_bh(&hpbdev->reg_lock);
++	spin_lock_irq(&hpbdev->reg_lock);
+ 	mode = __raw_readl(hpbdev->mode_reg);
+ 	mode &= ~mask;
+ 	mode |= data;
+ 	__raw_writel(mode, hpbdev->mode_reg);
+-	spin_unlock_bh(&hpbdev->reg_lock);
++	spin_unlock_irq(&hpbdev->reg_lock);
+ }
+ 
+ static void dmae_select_shpt(struct hpb_dmae_device *hpbdev, u32 ch,
+@@ -151,14 +151,14 @@ static void dmae_select_shpt(struct hpb_dmae_device *hpbdev, u32 ch,
+ 	u32 pos = ch & 31;
+ 	u32 val;
+ 
+-	spin_lock_bh(&hpbdev->reg_lock);
++	spin_lock_irq(&hpbdev->reg_lock);
+ 	val = __raw_readl(reg);
+ 	if (flags & HPB_DMAE_SET_SHPT1) /* select SuperHywayPort1 */
+ 		val |= (1 << pos);
+ 	else /* select SuperHywayPort0 */
+ 		val &= ~(1 << pos);
+ 	__raw_writel(val, reg);
+-	spin_unlock_bh(&hpbdev->reg_lock);
++	spin_unlock_irq(&hpbdev->reg_lock);
+ }
+ 
+ static void hpb_dmae_ctl_stop(struct hpb_dmae_device *hpbdev)
+@@ -810,6 +810,7 @@ static int hpb_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+ 			   unsigned long arg)
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
++	unsigned long flags;
+ 
+ 	/* Only supports DMA_TERMINATE_ALL */
+ 	if (cmd != DMA_TERMINATE_ALL)
+@@ -818,9 +819,9 @@ static int hpb_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+ 	if (!chan)
+ 		return -EINVAL;
+ 
++	spin_lock_irqsave(&hpb_chan->desc_lock, flags);
+ 	dmae_halt(hpb_chan);
+ 
+-	spin_lock_bh(&hpb_chan->desc_lock);
+ 	if (!list_empty(&hpb_chan->ld_queue)) {
+ 		/* Record partial transfer */
+ 		struct hpb_desc *desc = list_entry(hpb_chan->ld_queue.next,
+@@ -829,7 +830,7 @@ static int hpb_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+ 			 << hpb_chan->xmit_shift;
+ 
+ 	}
+-	spin_unlock_bh(&hpb_chan->desc_lock);
++	spin_unlock_irqrestore(&hpb_chan->desc_lock, flags);
+ 
+ 	hpb_dmae_chan_ld_cleanup(hpb_chan, true);
+ 
+@@ -985,8 +986,8 @@ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+ 
+ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ {
+-	struct hpb_dmae_chan *new_hpb_chan;
+ 	struct platform_device *pdev = to_platform_device(hpbdev->common.dev);
++	struct hpb_dmae_chan *new_hpb_chan;
+ 
+ 	/* alloc channel */
+ 	new_hpb_chan = kzalloc(sizeof(struct hpb_dmae_chan), GFP_KERNEL);
+@@ -996,7 +997,7 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 		return -ENOMEM;
+ 	}
+ 
+-	/* copy struct dma_device */
++	/* reference struct dma_device */
+ 	new_hpb_chan->common.device = &hpbdev->common;
+ 	dma_cookie_init(&new_hpb_chan->common);
+ 	new_hpb_chan->dev = hpbdev->common.dev;
+@@ -1005,13 +1006,6 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 	new_hpb_chan->plane_cnt = PLANE_ON;
+ 	new_hpb_chan->desc_flag = PLANE_ON;
+ 
+-	if (pdev->id >= 0)
+-		snprintf(new_hpb_chan->dev_id, sizeof(new_hpb_chan->dev_id),
+-			 "hpb-dmae%d.%d", pdev->id, new_hpb_chan->id);
+-	else
+-		snprintf(new_hpb_chan->dev_id, sizeof(new_hpb_chan->dev_id),
+-			 "hpb-dma%d", new_hpb_chan->id);
+-
+ 	spin_lock_init(&new_hpb_chan->desc_lock);
+ 
+ 	/* Init descripter manage list */
+@@ -1024,6 +1018,13 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 
+ 	hpbdev->common.chancnt++;
+ 
++	if (pdev->id >= 0)
++		snprintf(new_hpb_chan->dev_id, sizeof(new_hpb_chan->dev_id),
++			 "hpb-dmae%d.%d", pdev->id, new_hpb_chan->id);
++	else
++		snprintf(new_hpb_chan->dev_id, sizeof(new_hpb_chan->dev_id),
++			 "hpb-dma%d", new_hpb_chan->id);
++
+ 	hpbdev->chan[id] = new_hpb_chan;
+ 	return 0;
+ }
+-- 
+1.7.9.5
+

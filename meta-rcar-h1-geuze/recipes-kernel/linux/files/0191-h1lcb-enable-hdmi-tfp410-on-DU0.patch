@@ -1,0 +1,29 @@
+From 7767814d154e10eff9e77c810005bad6001f9ca1 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 15:02:43 +0700
+Subject: [PATCH 191/215] h1lcb enable hdmi tfp410 on DU0
+
+---
+ arch/arm/mach-shmobile/board-h1lcb.c |    2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index a4c881c..9be7609 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -52,12 +52,10 @@
+ 
+ static struct i2c_board_info h1lcb_i2c_devices[] = {
+ 	{ I2C_BOARD_INFO("ak4642", 0x12), },
+-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	{ I2C_BOARD_INFO("tfp410", 0x3f), },
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
+ 	{ I2C_BOARD_INFO("tfp410", 0x3e), },
+ #endif
+-#endif
+ };
+ 
+ /* Fixed 3.3V regulator to be used by SDHI0 */
+-- 
+1.7.9.5
+

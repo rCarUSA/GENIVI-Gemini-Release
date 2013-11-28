@@ -1,0 +1,39 @@
+From c037a6c2bb27ddc1cde56b1397d98680780a745a Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 11:09:11 +0000
+Subject: [PATCH 116/215] hpbdma: Simplify xmit shift code
+
+This makes the code easier to read.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index a8e0741..6ac67ff 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -182,12 +182,16 @@ static unsigned int calc_xmit_shift(struct hpb_dmae_chan *hpb_chan)
+ 
+ 	int cnt;
+ 	int width = hpb_dmae_readl(hpb_chan, DCR);
++	int dst_width = width & 3;
++	int src_width = (width >> 8) & 3;
+ 
+-	if (((width & (0x03<<8)) == (0x00<<8)) && ((width & 0x03) == 0x00))
++	if (src_width != dst_width)
++		cnt = 0;
++	else if (src_width == 0x00)
+ 		cnt = 0; /* 8bit */
+-	else if (((width & (0x03<<8)) == (0x01<<8)) && ((width & 0x03) == 0x01))
++	else if (src_width == 0x01)
+ 		cnt = 1; /* 16bit */
+-	else if (((width & (0x03<<8)) == (0x02<<8)) && ((width & 0x03) == 0x02))
++	else if (src_width == 0x02)
+ 		cnt = 2; /* 32bit */
+ 	else
+ 		cnt = 0;
+-- 
+1.7.9.5
+

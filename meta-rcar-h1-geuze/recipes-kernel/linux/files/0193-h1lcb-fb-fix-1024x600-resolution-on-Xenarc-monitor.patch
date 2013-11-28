@@ -1,0 +1,25 @@
+From 928ce5b12adf40c9595eb9c93915be5ab112babf Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Fri, 31 May 2013 15:09:57 +0700
+Subject: [PATCH 193/215] h1lcb fb fix 1024x600 resolution on Xenarc monitor
+
+---
+ arch/arm/mach-shmobile/board-h1lcb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-shmobile/board-h1lcb.c b/arch/arm/mach-shmobile/board-h1lcb.c
+index 72cdc8d..a1d5ac7 100755
+--- a/arch/arm/mach-shmobile/board-h1lcb.c
++++ b/arch/arm/mach-shmobile/board-h1lcb.c
+@@ -273,7 +273,7 @@ static const struct fb_videomode extra_video_modes[] = {
+ 	/* 800x480 */
+ 	{ NULL, 75, 800, 480, 23922, 128, 24, 33, 10, 96, 2, 0, 0 },
+ 	/* 1024x600 */
+-	{ NULL, 60, 1024, 600, 11764, 120, 25, 100, 65, 220, 36, 0, 0 },
++	{ NULL, 60, 1024, 600, 20472, 144, 39, 16, 2, 104, 3, 0, 0 },
+ 	/* 1280x768 */
+ 	{ NULL, 50, 1280, 768, 11764, 97, 131, 59, 63, 122, 21, 0, 0 },
+ 	/* 1280x720p @ 50Hz */
+-- 
+1.7.9.5
+

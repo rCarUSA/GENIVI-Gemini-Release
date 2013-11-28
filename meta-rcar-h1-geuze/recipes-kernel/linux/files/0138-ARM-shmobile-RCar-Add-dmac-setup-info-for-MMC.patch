@@ -1,0 +1,100 @@
+From 59f4b01cfbfa88995af867eb1141ce4122be3424 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 1 Mar 2013 14:41:47 +0000
+Subject: [PATCH 138/215] ARM: shmobile: RCar: Add dmac setup info for MMC
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c              |   40 ++++++++++++++++++++++++
+ arch/arm/mach-shmobile/include/mach/hpb-dmae.h |    4 +++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 2cf0735..46cd16f 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -65,6 +65,23 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 				HPB_DMAE_SET_SHPT1,
+ 		.dma_ch	= 22,
+ 	}, {
++		.id	= HPBDMA_SLAVE_MMC0_TX,
++		.addr	= 0xffe5a000 + 0x34,
++		.dcr	= SPDS_32BIT | DMDL | DPDS_32BIT,
++		.mdr	= ASYNC_MD_MULTI | ASYNC_BTMD_NBURST,
++		.port	= 0x0100,
++		.flags  = HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
++		.dma_ch	= 24,
++	}, {
++		.id	= HPBDMA_SLAVE_MMC0_RX,
++		.addr	= 0xffe5a000 + 0x34,
++		.dcr	= SPDS_32BIT | SMDL | DPDS_32BIT,
++		.mdr	= ASYNC_MD_MULTI | ASYNC_BTMD_NBURST,
++		.port	= 0x0100,
++		.flags  = HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE |
++				HPB_DMAE_SET_SHPT1,
++		.dma_ch	= 24,
++	}, {
+ 		.id	= HPBDMA_SLAVE_SSI0_TX_ST,
+ 		.addr	= 0xffd90000 + 0x1008,
+ 		.dcr	= CT | DIP | SPDS_32BIT | DMDL | DPDS_32BIT,
+@@ -78,6 +95,23 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.port	= 0x0101,
+ 		.flags	= 0,
+ 		.dma_ch	= 29,
++	}, {
++		.id	= HPBDMA_SLAVE_MMC1_TX,
++		.addr	= 0xffe5b000 + 0x34,
++		.dcr	= SPDS_32BIT | DMDL | DPDS_32BIT,
++		.mdr	= ASYNC_MD_MULTI | ASYNC_BTMD_NBURST,
++		.port	= 0x0100,
++		.flags  = HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
++		.dma_ch	= 43,
++	}, {
++		.id	= HPBDMA_SLAVE_MMC1_RX,
++		.addr	= 0xffe5b000 + 0x34,
++		.dcr	= SPDS_32BIT | SMDL | DPDS_32BIT,
++		.mdr	= ASYNC_MD_MULTI | ASYNC_BTMD_NBURST,
++		.port	= 0x0100,
++		.flags  = HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE |
++				HPB_DMAE_SET_SHPT1,
++		.dma_ch	= 43,
+ 	},
+ };
+ 
+@@ -93,10 +127,16 @@ static const struct hpb_dmae_channel rcar_dmae_channels[] = {
+ 	DMAE_CHANNEL(IRQ_DMAC_H(21), HPBDMA_SLAVE_SDHI0_TX),
+ 	/* ch.22 SD0 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(22), HPBDMA_SLAVE_SDHI0_RX),
++	/* ch.24 MMC0 */
++	DMAE_CHANNEL(IRQ_DMAC_H(24), HPBDMA_SLAVE_MMC0_TX),
++	DMAE_CHANNEL(IRQ_DMAC_H(24), HPBDMA_SLAVE_MMC0_RX),
+ 	/* ch.28 SSI0 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_ST),
+ 	/* ch.29 SSI1 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_ST),
++	/* ch.43 MMC1 */
++	/*DMAE_CHANNEL(IRQ_DMAC_H(43), HPBDMA_SLAVE_MMC1_TX),*/
++	/*DMAE_CHANNEL(IRQ_DMAC_H(43), HPBDMA_SLAVE_MMC1_RX),*/
+ };
+ 
+ static const unsigned int ts_shift[] = TS_SHIFT;
+diff --git a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+index 97707ac..ef87b34 100644
+--- a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
++++ b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+@@ -27,8 +27,12 @@ enum {
+ 	HPBDMA_SLAVE_INVALID,		/* DMA slave ID 0 means no DMA */
+ 	HPBDMA_SLAVE_SDHI0_TX,		/*Ch.21*/
+ 	HPBDMA_SLAVE_SDHI0_RX,		/*Ch.22*/
++	HPBDMA_SLAVE_MMC0_TX,		/*Ch.24*/
++	HPBDMA_SLAVE_MMC0_RX,		/*Ch.24*/
+ 	HPBDMA_SLAVE_SSI0_TX_ST,	/*Ch.28*/
+ 	HPBDMA_SLAVE_SSI1_RX_ST,	/*Ch.29*/
++	HPBDMA_SLAVE_MMC1_TX,		/*Ch.43*/
++	HPBDMA_SLAVE_MMC1_RX,		/*Ch.43*/
+ };
+ 
+ #endif /* __ARCH_MACH_HPBDMAE_H */
+-- 
+1.7.9.5
+

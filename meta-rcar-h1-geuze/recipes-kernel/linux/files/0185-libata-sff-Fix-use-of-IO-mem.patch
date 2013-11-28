@@ -1,0 +1,38 @@
+From c79a5b36b1c2dd3d268ec453904ad7ef0aac2620 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 5 Dec 2012 11:40:20 +0000
+Subject: [PATCH 185/215] libata-sff: Fix use of IO mem
+
+PCI requires IO mem, but not an IO port. Some of the SFF code
+did not make this distinction.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/ata/libata-sff.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/ata/libata-sff.c b/drivers/ata/libata-sff.c
+index d8af325..c4f2b0b 100644
+--- a/drivers/ata/libata-sff.c
++++ b/drivers/ata/libata-sff.c
+@@ -2255,7 +2255,7 @@ void ata_sff_std_ports(struct ata_ioports *ioaddr)
+ }
+ EXPORT_SYMBOL_GPL(ata_sff_std_ports);
+ 
+-#ifdef CONFIG_PCI
++#if defined(CONFIG_PCI) && defined(CONFIG_HAS_IOPORT)
+ 
+ static int ata_resources_present(struct pci_dev *pdev, int port)
+ {
+@@ -3152,7 +3152,7 @@ int ata_bmdma_port_start32(struct ata_port *ap)
+ }
+ EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
+ 
+-#ifdef CONFIG_PCI
++#if defined(CONFIG_PCI) && defined(CONFIG_HAS_IOPORT)
+ 
+ /**
+  *	ata_pci_bmdma_clear_simplex -	attempt to kick device out of simplex
+-- 
+1.7.9.5
+

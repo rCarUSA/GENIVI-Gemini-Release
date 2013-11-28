@@ -1,0 +1,103 @@
+From e88eafb21ead4b698d516f19cebcd1b206f6eaff Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 1 Mar 2013 14:20:15 +0000
+Subject: [PATCH 136/215] hpbdma: Remove channel offset from setup info
+
+Since we already have the dma channel number in the slave config
+data, we can calculate the offset to the specific channel registers.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c |   17 ++++++++---------
+ drivers/dma/rcar-hpbdma.c         |    8 ++++----
+ include/linux/rcar-hpbdma.h       |    3 ++-
+ 3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 046ee3c..7dcbc64 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -81,25 +81,24 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 	},
+ };
+ 
+-#define DMAE_CHANNEL(_offset, _irq, _s_id)	\
++#define DMAE_CHANNEL(_irq, _s_id)	\
+ 	{						\
+-		.offset		= _offset,		\
+ 		.ch_irq		= _irq,			\
+-		.s_id		= _s_id,			\
++		.s_id		= _s_id,		\
+ 	}
+ 
+ /* comment out for not using Ch */
+ static const struct hpb_dmae_channel rcar_dmae_channels[] = {
+ 	/* ch.21 SD0 */
+-	DMAE_CHANNEL(0x540, IRQ_DMAC_H(21), HPBDMA_SLAVE_SDHI0_TX),
++	DMAE_CHANNEL(IRQ_DMAC_H(21), HPBDMA_SLAVE_SDHI0_TX),
+ 	/* ch.22 SD0 */
+-	DMAE_CHANNEL(0x580, IRQ_DMAC_H(22), HPBDMA_SLAVE_SDHI0_RX),
++	DMAE_CHANNEL(IRQ_DMAC_H(22), HPBDMA_SLAVE_SDHI0_RX),
+ 	/* ch.28 SSI0 */
+-	DMAE_CHANNEL(0x700, IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_ST),
+-	DMAE_CHANNEL(0x700, IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_MN),
++	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_ST),
++	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_MN),
+ 	/* ch.29 SSI1 */
+-	DMAE_CHANNEL(0x740, IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_ST),
+-	DMAE_CHANNEL(0x740, IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_MN),
++	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_ST),
++	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_MN),
+ };
+ 
+ static const unsigned int ts_shift[] = TS_SHIFT;
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 15f5280..61bbf5c 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -491,8 +491,8 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 			if (chan_pdata->s_id == param->slave_id) {
+ 				hpb_chan->id = param->slave_id;
+ 				hpb_chan->base =
+-					 hpbdev->chan_reg + chan_pdata->offset
+-					  / sizeof(u32);
++					 hpbdev->chan_reg + (cfg->dma_ch *
++					 HPB_DMA_CHANNEL_OFFSET / sizeof(u32));
+ 				hpb_chan->irq = chan_pdata->ch_irq;
+ 				dev_dbg(hpb_chan->dev,
+ 					 "  Detect Slave device\n");
+@@ -500,8 +500,8 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 					 " -- slave_id          :0x%x\n"
+ 					 , hpb_chan->id);
+ 				dev_dbg(hpb_chan->dev,
+-					 " -- chan_pdata->offset:0x%x\n"
+-					 , chan_pdata->offset);
++					 " -- dma chan          :%d\n"
++					 , cfg->dma_ch);
+ 				dev_dbg(hpb_chan->dev,
+ 					 " -- hpb_chan->irq     :%d\n"
+ 					 , hpb_chan->irq);
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index 945a514..afe870d 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -144,6 +144,8 @@
+ #define HPB_DMA_SLAVE_NUMBER 256
+ #define HPB_DMA_TCR_MAX 0x03FFFFFF	/* 64MB */
+ 
++#define HPB_DMA_CHANNEL_OFFSET 0x40
++
+ #define to_hpb_chan(chan) container_of(chan, struct hpb_dmae_chan, common)
+ #define to_hpb_desc(lh) container_of(lh, struct hpb_desc, node)
+ #define tx_to_hpb_desc(tx) container_of(tx, struct hpb_desc, async_tx)
+@@ -229,7 +231,6 @@ struct hpb_dmae_slave_config {
+ };
+ 
+ struct hpb_dmae_channel {
+-	unsigned int	offset;
+ 	unsigned int	ch_irq;
+ 	unsigned int	s_id;
+ };
+-- 
+1.7.9.5
+

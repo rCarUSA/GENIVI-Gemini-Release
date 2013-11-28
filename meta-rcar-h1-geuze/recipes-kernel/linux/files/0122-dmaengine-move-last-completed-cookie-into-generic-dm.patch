@@ -1,0 +1,73 @@
+From b571ad28ce816e3461f059cfef9d3eadc3eb2591 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 13:44:54 +0000
+Subject: [PATCH 122/215] dmaengine: move last completed cookie into generic
+ dma_chan structure
+
+Every DMA engine implementation declares a last completed dma cookie
+in their private dma channel structures.  This is pointless, and
+forces driver specific code.  Move this out into the common dma_chan
+structure.
+
+Based on commit 4d4e58de32a192fea65ab84509d17d199bd291c8
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c   |   10 +++++-----
+ include/linux/rcar-hpbdma.h |    1 -
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 0b01328..01eca11 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -876,13 +876,13 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 			cookie = tx->cookie;
+ 
+ 		if (desc->mark == DESC_COMPLETED && desc->chunks == 1) {
+-			if (hpb_chan->completed_cookie != desc->cookie - 1)
++			if (hpb_chan->common.completed_cookie != desc->cookie - 1)
+ 				dev_dbg(hpb_chan->dev,
+ 					"Completing cookie %d, expected %d\n",
+ 					desc->cookie,
+-					hpb_chan->completed_cookie + 1);
++					hpb_chan->common.completed_cookie + 1);
+ 
+-			hpb_chan->completed_cookie = desc->cookie;
++			hpb_chan->common.completed_cookie = desc->cookie;
+ 		}
+ 
+ 		/* Call callback on the last chunk */
+@@ -946,7 +946,7 @@ static void hpb_dmae_chan_ld_cleanup(struct hpb_dmae_chan *hpb_chan, bool all)
+ 
+ 	if (all)
+ 		/* Terminating - forgive uncompleted cookies */
+-		hpb_chan->completed_cookie = hpb_chan->common.cookie;
++		hpb_chan->common.completed_cookie = hpb_chan->common.cookie;
+ }
+ 
+ static void hpb_dmae_memcpy_issue_pending(struct dma_chan *chan)
+@@ -967,7 +967,7 @@ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+ 	hpb_dmae_chan_ld_cleanup(hpb_chan, false);
+ 
+ 	last_used = chan->cookie;
+-	last_complete = hpb_chan->completed_cookie;
++	last_complete = hpb_chan->common.completed_cookie;
+ 	BUG_ON(last_complete < 0);
+ 	dma_set_tx_state(txstate, last_complete, last_used, 0);
+ 
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index 57ace13..63282ec 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -176,7 +176,6 @@
+ struct device;
+ 
+ struct hpb_dmae_chan {
+-	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
+ 	spinlock_t desc_lock;		/* Descriptor operation lock */
+ 	struct list_head ld_queue;	/* Link descriptors queue */
+ 	struct list_head ld_free;	/* Link descriptors free */
+-- 
+1.7.9.5
+

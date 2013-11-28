@@ -1,0 +1,35 @@
+From 29fb12d5f268760fcb28ebbc1949d3862f219a58 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Mon, 3 Jun 2013 09:35:40 +0700
+Subject: [PATCH 198/215] h1lcb enable bluetooth
+
+---
+ arch/arm/configs/h1lcb_defconfig |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/configs/h1lcb_defconfig b/arch/arm/configs/h1lcb_defconfig
+index 84a96e3..efa17b9 100755
+--- a/arch/arm/configs/h1lcb_defconfig
++++ b/arch/arm/configs/h1lcb_defconfig
+@@ -162,4 +162,16 @@ CONFIG_DEBUG_USER=y
+ CONFIG_AVERAGE=y
+ 
+ # For selecting series number of h1lcb boards
+-CONFIG_SERIES_ABOVE_15=y
+\ No newline at end of file
++CONFIG_SERIES_ABOVE_15=y
++
++# For Bluetooth
++CONFIG_BT=y
++CONFIG_BT_HIDP=y
++CONFIG_BT_HCIBTUSB=y
++CONFIG_BT_RFCOMM=y
++CONFIG_BT_BNEP=y
++
++CONFIG_BT_RFCOMM_TTY=y
++CONFIG_BT_BNEP_MC_FILTER=y
++CONFIG_BT_BNEP_PROTO_FILTER=y
++
+-- 
+1.7.9.5
+

@@ -1,0 +1,28 @@
+From 812b1b8534a9047f31812ff3bc9f032b1043d569 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 10:11:09 +0000
+Subject: [PATCH 120/215] Comment typo fixes for 'descriptor'
+
+Based on commit 5a3a7658863f74f28cef53b9336bff7423659801
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index dca8c22..4fbc677 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -336,7 +336,7 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 
+ 	spin_lock_bh(&hpb_chan->desc_lock);
+ 
+-	/* Find the first not transferred desciptor */
++	/* Find the first not transferred descriptor */
+ 	list_for_each_entry(desc, &hpb_chan->ld_queue, node) {
+ 		if (desc->mark == DESC_SUBMITTED) {
+ 			dev_dbg(hpb_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",
+-- 
+1.7.9.5
+

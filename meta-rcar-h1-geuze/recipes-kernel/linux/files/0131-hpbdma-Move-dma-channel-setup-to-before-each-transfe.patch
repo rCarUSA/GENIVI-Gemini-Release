@@ -1,0 +1,49 @@
+From ba02e95771dbf4011b462baba64f3d0c678e5d36 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Tue, 19 Feb 2013 16:33:31 +0000
+Subject: [PATCH 131/215] hpbdma: Move dma channel setup to before each
+ transfer
+
+In order to later support tx & rx on a single physical channel,
+any setup of the dma channels needs to be done each time we start
+a transfer.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 7abb7f8..774e8e5 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -322,6 +322,13 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_slave *param = hpb_chan->common.private;
+ 
++	if (param->config->flags & HPB_DMAE_SET_ASYNC_MODE)
++		dmae_set_async_mode(hpbdev, MD_MASK(param->config->dma_ch),
++					param->config->mdr);
++	dmae_select_shpt(hpbdev, param->config->dma_ch, param->config->flags);
++	dmae_set_dcr(hpb_chan, param->config->dcr);
++	dmae_set_port(hpb_chan, param->config->port);
++
+ 	/* Find the first not transferred descriptor */
+ 	list_for_each_entry(desc, &hpb_chan->ld_queue, node) {
+ 		if (desc->mark == DESC_SUBMITTED) {
+@@ -496,12 +503,6 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 		else
+ 			hpb_chan->tran_mode = TRAN_SINGLE;
+ 
+-		if (cfg->flags & HPB_DMAE_SET_ASYNC_MODE)
+-			dmae_set_async_mode(hpbdev, MD_MASK(cfg->dma_ch),
+-						cfg->mdr);
+-		dmae_select_shpt(hpbdev, cfg->dma_ch, cfg->flags);
+-		dmae_set_dcr(hpb_chan, cfg->dcr);
+-		dmae_set_port(hpb_chan, cfg->port);
+ 		dmae_enable_int(hpbdev, cfg->dma_ch);
+ 
+ 		/* Init DMA tasklet */
+-- 
+1.7.9.5
+

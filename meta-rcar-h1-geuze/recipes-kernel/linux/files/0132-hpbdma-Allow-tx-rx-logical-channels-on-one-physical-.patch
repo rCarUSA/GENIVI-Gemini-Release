@@ -1,0 +1,166 @@
+From 54c247767fbdcb18a1c446bfa42c8f0c77a49cf9 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 20 Feb 2013 07:09:46 +0000
+Subject: [PATCH 132/215] hpbdma: Allow tx & rx logical channels on one
+ physical channel
+
+Several dma slaves can only use a single physical channel for both
+transmit and receive, e.g. mmc0. This change allows separate tx & rx
+logical channels to work on a single physical channel.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c   |   72 +++++++++++++++++++++++++++++++++++--------
+ include/linux/rcar-hpbdma.h |    8 ++++-
+ 2 files changed, 66 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 774e8e5..b0cf986 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -399,13 +399,29 @@ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ {
+ 	irqreturn_t ret = IRQ_NONE;
+ 	struct hpb_dmae_chan *hpb_chan = data;
++	struct hpb_dmae_chan *hpb_chan_tx;
++	struct hpb_dmae_chan *hpb_chan_rx;
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	u32 ch;
+-
+-	spin_lock(&hpb_chan->desc_lock);
++	u32 dcr;
+ 
+ 	ch = irq - IRQ_DMAC_H(0); /* DMA Channel No.*/
+ 
++	hpb_chan_tx = hpbdev->chans[ch].tx;
++	hpb_chan_rx = hpbdev->chans[ch].rx;
++
++	if (hpb_chan_tx)
++		spin_lock(&hpb_chan_tx->desc_lock);
++	if (hpb_chan_rx)
++		spin_lock(&hpb_chan_rx->desc_lock);
++
++	/* tx or rx logical channel? */
++	dcr = hpb_dmae_readl(hpb_chan, DCR);
++	if (dcr & DMDL)
++		hpb_chan = hpb_chan_tx;
++	else
++		hpb_chan = hpb_chan_rx;
++
+ 	/* Check Complete DMA Transfer */
+ 	if (dmadintsr_read(hpbdev, ch) == 0x01) {
+ 		/* Clear Interrupt status */
+@@ -414,7 +430,10 @@ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ 		tasklet_schedule(&hpb_chan->tasklet);
+ 	}
+ 
+-	spin_unlock(&hpb_chan->desc_lock);
++	if (hpb_chan_tx)
++		spin_unlock(&hpb_chan_tx->desc_lock);
++	if (hpb_chan_rx)
++		spin_unlock(&hpb_chan_rx->desc_lock);
+ 
+ 	return ret;
+ }
+@@ -423,6 +442,7 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
++	struct hpb_dmae_chans *hw_chans;
+ 	struct hpb_dmae_slave *param;
+ 	struct hpb_desc *desc;
+ 	const struct hpb_dmae_channel *chan_pdata;
+@@ -482,17 +502,30 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 			chan_pdata++;
+ 		}
+ 
+-		/* set up channel irq */
+-		ret = request_irq(hpb_chan->irq,
+-				&hpb_dmae_interrupt, IRQF_DISABLED,
+-				hpb_chan->dev_id, hpb_chan);
+-		if (ret) {
+-			dev_err(hpbdev->common.dev,
+-				"DMA channel request_irq error "
+-				"with return %d\n", ret);
+-			goto err_no_irq;
++		/*
++		 * Only request an irq if we haven't already done so for this
++		 * dma hardware channel.
++		 */
++		hw_chans = &hpbdev->chans[cfg->dma_ch];
++		if (!hw_chans->tx && !hw_chans->rx) {
++			/* set up channel irq */
++			ret = request_irq(hpb_chan->irq,
++					&hpb_dmae_interrupt, IRQF_SHARED,
++					hpb_chan->dev_id, hpb_chan);
++			if (ret) {
++				dev_err(hpbdev->common.dev,
++					"DMA channel request_irq error "
++					"with return %d\n", ret);
++				goto err_no_irq;
++			}
+ 		}
+ 
++		/* Store information about the tx/rx logical channels */
++		if (cfg->dcr & DMDL)
++			hw_chans->tx = hpb_chan;
++		else
++			hw_chans->rx = hpb_chan;
++
+ 		if ((cfg->dcr & (CT | DIP)) == CT ||
+ 		    (cfg->dcr & (CT | DIP)) == DIP) {
+ 			dev_err(hpbdev->common.dev, "DCR setting error");
+@@ -547,6 +580,9 @@ err_no_irq:
+ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
++	struct hpb_dmae_slave *param = hpb_chan->common.private;
++	struct hpb_dmae_chans *hw_chans;
+ 	struct hpb_desc *desc, *_desc;
+ 	LIST_HEAD(list);
+ 	int descs = hpb_chan->descs_allocated;
+@@ -565,7 +601,17 @@ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ 	if (!list_empty(&hpb_chan->ld_queue))
+ 		hpb_dmae_chan_ld_cleanup(hpb_chan, true);
+ 
+-	free_irq(hpb_chan->irq, hpb_chan);
++	/* Freeing the tx or rx channel? */
++	hw_chans = &hpbdev->chans[param->config->dma_ch];
++
++	if (param->config->dcr & DMDL)
++		hw_chans->tx = NULL;
++	else
++		hw_chans->rx = NULL;
++
++	/* Only free the irq when both logical channels have been freed */
++	if (!hw_chans->tx && !hw_chans->rx)
++		free_irq(hpb_chan->irq, hpb_chan);
+ 
+ 	if (chan->private) {
+ 		/* The caller is holding dma_list_mutex */
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index 63282ec..e0955e7 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -193,10 +193,16 @@ struct hpb_dmae_chan {
+ 	int desc_flag;
+ };
+ 
++struct hpb_dmae_chans {
++	struct hpb_dmae_chan *rx;
++	struct hpb_dmae_chan *tx;
++};
++
+ struct hpb_dmae_device {
+ 	spinlock_t reg_lock;		/* comm_reg operation lock */
+ 	struct dma_device common;
+-	struct hpb_dmae_chan *chan[HPB_DMAC_USE_CHANNELS];
++	struct hpb_dmae_chan *chan[2*HPB_DMAC_USE_CHANNELS];	/* separate tx & rx channels */
++	struct hpb_dmae_chans chans[HPB_DMA_USE_END_CH];	/* physical channels */
+ 	struct hpb_dmae_pdata *pdata;
+ 	u32 __iomem *chan_reg;
+ 	u32 __iomem *common_reg;
+-- 
+1.7.9.5
+

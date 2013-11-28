@@ -1,0 +1,96 @@
+From 20e4abd4a735f69a3e2061edfb9e21d5fed77027 Mon Sep 17 00:00:00 2001
+From: James Gomez <james.gomez@renesas.com>
+Date: Mon, 11 Feb 2013 15:24:38 +0000
+Subject: [PATCH 149/215] ARM: shmobile: r8a7779: GPIO: Added support for Read
+ & Write on same port
+
+Updated pfc driver for the R-Car H1 platform to allow GPIO pins to
+read/write. Previously entire port had to be read or write
+(One direction set at build time).
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/pfc-r8a7779.c |   14 +++++++-------
+ drivers/sh/pfc.c                     |    5 +++--
+ include/linux/sh_pfc.h               |    8 +++++++-
+ 3 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/pfc-r8a7779.c b/arch/arm/mach-shmobile/pfc-r8a7779.c
+index 15f6a48..979968c 100644
+--- a/arch/arm/mach-shmobile/pfc-r8a7779.c
++++ b/arch/arm/mach-shmobile/pfc-r8a7779.c
+@@ -2585,13 +2585,13 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
+ };
+ 
+ static struct pinmux_data_reg pinmux_data_regs[] = {
+-	{ PINMUX_DATA_REG("INDT0", 0xffc40008, 32) { GP_INDT(0) } },
+-	{ PINMUX_DATA_REG("INDT1", 0xffc41008, 32) { GP_INDT(1) } },
+-	{ PINMUX_DATA_REG("INDT2", 0xffc42008, 32) { GP_INDT(2) } },
+-	{ PINMUX_DATA_REG("INDT3", 0xffc43008, 32) { GP_INDT(3) } },
+-	{ PINMUX_DATA_REG("INDT4", 0xffc44008, 32) { GP_INDT(4) } },
+-	{ PINMUX_DATA_REG("INDT5", 0xffc45008, 32) { GP_INDT(5) } },
+-	{ PINMUX_DATA_REG("INDT6", 0xffc46008, 32) {
++	{ PINMUX_DATA_REG2("INDT0", 0xffc4000c, 0xffc40008, 32) { GP_INDT(0) } },
++	{ PINMUX_DATA_REG2("INDT1", 0xffc4100c, 0xffc41008, 32) { GP_INDT(1) } },
++	{ PINMUX_DATA_REG2("INDT2", 0xffc4200c, 0xffc42008, 32) { GP_INDT(2) } },
++	{ PINMUX_DATA_REG2("INDT3", 0xffc4300c, 0xffc43008, 32) { GP_INDT(3) } },
++	{ PINMUX_DATA_REG2("INDT4", 0xffc4400c, 0xffc44008, 32) { GP_INDT(4) } },
++	{ PINMUX_DATA_REG2("INDT5", 0xffc4500c, 0xffc45008, 32) { GP_INDT(5) } },
++	{ PINMUX_DATA_REG2("INDT6", 0xffc4600c, 0xffc46008, 32) {
+ 		0, 0, 0, 0, 0, 0, 0, 0,	0, 0, 0, 0, 0, 0, 0, 0,
+ 		0, 0, 0, 0, 0, 0, 0, GP_6_8_DATA,
+ 		GP_6_7_DATA, GP_6_6_DATA, GP_6_5_DATA, GP_6_4_DATA,
+diff --git a/drivers/sh/pfc.c b/drivers/sh/pfc.c
+index 522c6c4..462c84f 100644
+--- a/drivers/sh/pfc.c
++++ b/drivers/sh/pfc.c
+@@ -157,14 +157,14 @@ static void gpio_write_bit(struct pinmux_data_reg *dr,
+ 
+ 	pr_debug("write_bit addr = %lx, value = %d, pos = %ld, "
+ 		 "r_width = %ld\n",
+-		 dr->reg, !!value, pos, dr->reg_width);
++		 dr->wreg, !!value, pos, dr->reg_width);
+ 
+ 	if (value)
+ 		set_bit(pos, &dr->reg_shadow);
+ 	else
+ 		clear_bit(pos, &dr->reg_shadow);
+ 
+-	gpio_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
++	gpio_write_raw_reg(dr->mapped_wreg, dr->reg_width, dr->reg_shadow);
+ }
+ 
+ static void config_reg_helper(struct pinmux_info *gpioc,
+@@ -249,6 +249,7 @@ static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
+ 			break;
+ 
+ 		data_reg->mapped_reg = pfc_phys_to_virt(gpioc, data_reg->reg);
++		data_reg->mapped_wreg = pfc_phys_to_virt(gpioc, data_reg->wreg);
+ 
+ 		for (n = 0; n < data_reg->reg_width; n++) {
+ 			if (data_reg->enum_ids[n] == gpiop->enum_id) {
+diff --git a/include/linux/sh_pfc.h b/include/linux/sh_pfc.h
+index 5c15aed..39d7d89 100644
+--- a/include/linux/sh_pfc.h
++++ b/include/linux/sh_pfc.h
+@@ -63,10 +63,16 @@ struct pinmux_data_reg {
+ 	unsigned long reg, reg_width, reg_shadow;
+ 	pinmux_enum_t *enum_ids;
+ 	void __iomem *mapped_reg;
++	unsigned long wreg;	/* separate write reg */
++	void __iomem *mapped_wreg;
+ };
+ 
+ #define PINMUX_DATA_REG(name, r, r_width) \
+-	.reg = r, .reg_width = r_width,	\
++	.reg = r, .wreg = r, .reg_width = r_width,	\
++	.enum_ids = (pinmux_enum_t [r_width]) \
++
++#define PINMUX_DATA_REG2(name, r, r2, r_width) \
++	.reg = r, .wreg = r2, .reg_width = r_width,	\
+ 	.enum_ids = (pinmux_enum_t [r_width]) \
+ 
+ struct pinmux_irq {
+-- 
+1.7.9.5
+

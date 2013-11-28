@@ -1,0 +1,35 @@
+From 26683f30a3bae34f96f1d268a7462426b9a7ea3b Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Mar 2013 13:27:30 +0000
+Subject: [PATCH 184/215] rcarvin: Add error message if SoC camera doesn't
+ have g_mbus_fmt fn.
+
+The VIN driver requires that tha SoC camera driver implements the
+g_mbus_fmt function. If it doesn't, users won't get a useful message.
+Hence this additional error message.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/media/video/rcarvin.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/video/rcarvin.c b/drivers/media/video/rcarvin.c
+index dd61a74..ba2216e 100644
+--- a/drivers/media/video/rcarvin.c
++++ b/drivers/media/video/rcarvin.c
+@@ -1146,8 +1146,11 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
+ 
+ 		/* First time */
+ 		ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+-		if (ret < 0)
++		if (ret < 0) {
++			dev_err(icd->parent,
++				"SoC camera must implement g_mbus_fmt!\n");
+ 			return ret;
++		}
+ 
+ 		while ((mf.width > 2560 || mf.height > 1920) && shift < 4) {
+ 			/* Try 2560x1920, 1280x960, 640x480, 320x240 */
+-- 
+1.7.9.5
+

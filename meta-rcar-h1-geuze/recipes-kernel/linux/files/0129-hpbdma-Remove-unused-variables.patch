@@ -1,0 +1,81 @@
+From 87e20eef8758bc89ce31e2a03a474cbc661f3fdf Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 18 Feb 2013 09:40:47 +0000
+Subject: [PATCH 129/215] hpbdma: Remove unused variables
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index b37f017..2c0cc9d 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -51,8 +51,6 @@ enum hpb_dmae_desc_status {
+ #define PLANE_ON 1
+ #define PLANE_OFF 0
+ 
+-static struct hpb_dmae_device *g_hpbdev;
+-
+ /* A bitmask with bits enough for enum hpb_dmae_slave_chan_id */
+ static unsigned long hpb_dmae_slave_used[BITS_TO_LONGS(HPB_DMA_SLAVE_NUMBER)];
+ 
+@@ -395,15 +393,13 @@ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ {
+ 	irqreturn_t ret = IRQ_NONE;
+ 	struct hpb_dmae_chan *hpb_chan = data;
+-	struct hpb_dmae_device *hpbdev;
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	u32 ch;
+ 
+ 	spin_lock(&hpb_chan->desc_lock);
+ 
+ 	ch = irq - IRQ_DMAC_H(0); /* DMA Channel No.*/
+ 
+-	hpbdev = g_hpbdev;
+-
+ 	/* Check Complete DMA Transfer */
+ 	if (dmadintsr_read(hpbdev, ch) == 0x01) {
+ 		/* Clear Interrupt status */
+@@ -419,18 +415,15 @@ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ 
+ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ {
+-	struct hpb_dmae_device *hpbdev;
++	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_slave *param;
+-	struct hpb_dmae_chan *hpb_chan;
+ 	struct hpb_desc *desc;
+ 	const struct hpb_dmae_channel *chan_pdata;
+ 	struct hpb_dmae_pdata *pdata;
+ 	int ret, i;
+ 
+-	hpbdev = g_hpbdev;
+ 	param = chan->private;
+-	hpbdev->chan[param->slave_id] = to_hpb_chan(chan);
+-	hpb_chan = hpbdev->chan[param->slave_id];
+ 	chan_pdata = &hpbdev->pdata->channel[0];
+ 	pdata = hpbdev->pdata;
+ 
+@@ -438,7 +431,6 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 
+ 	/* copy struct dma_device */
+ 	hpb_chan->common.device = &hpbdev->common;
+-	hpb_chan->dev = hpbdev->common.dev;
+ 
+ 	/*
+ 	 * This relies on the guarantee from dmaengine that alloc_chan_resources
+@@ -1164,8 +1156,6 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 	platform_set_drvdata(pdev, hpbdev);
+ 	dma_async_device_register(&hpbdev->common);
+ 
+-	g_hpbdev = hpbdev;
+-
+ 	return err;
+ 
+ rst_err:
+-- 
+1.7.9.5
+

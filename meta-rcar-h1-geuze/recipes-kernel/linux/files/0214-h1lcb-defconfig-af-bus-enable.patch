@@ -1,0 +1,26 @@
+From 8cd32a2bb3c7098b1a220a7e1fc8af50329dc979 Mon Sep 17 00:00:00 2001
+From: REA <REA@renesas.com>
+Date: Mon, 3 Jun 2013 09:47:26 +0700
+Subject: [PATCH 214/215] h1lcb defconfig af-bus enable
+
+---
+ arch/arm/configs/h1lcb_defconfig |    6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm/configs/h1lcb_defconfig b/arch/arm/configs/h1lcb_defconfig
+index efa17b9..0f62262 100755
+--- a/arch/arm/configs/h1lcb_defconfig
++++ b/arch/arm/configs/h1lcb_defconfig
+@@ -175,3 +175,9 @@ CONFIG_BT_RFCOMM_TTY=y
+ CONFIG_BT_BNEP_MC_FILTER=y
+ CONFIG_BT_BNEP_PROTO_FILTER=y
+ 
++# For genivi
++CONFIG_CONNECTOR=y
++CONFIG_NETFILTER=y
++CONFIG_AF_BUS=y
++CONFIG_NETFILTER_DBUS=y
++
+-- 
+1.7.9.5
+

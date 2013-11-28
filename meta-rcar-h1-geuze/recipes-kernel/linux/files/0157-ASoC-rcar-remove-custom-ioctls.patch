@@ -1,0 +1,221 @@
+From 86912aca1b154401f4427ca1b68689714ef442df Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 21 Dec 2012 12:52:11 +0000
+Subject: [PATCH 157/215] ASoC: rcar: remove custom ioctls
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ include/sound/rcar.h         |   48 -----------------------
+ sound/soc/rcar/rcar_ak4643.c |    5 ---
+ sound/soc/rcar/sru_pcm.c     |   86 ------------------------------------------
+ sound/soc/rcar/sru_pcm.h     |    8 ----
+ 4 files changed, 147 deletions(-)
+
+diff --git a/include/sound/rcar.h b/include/sound/rcar.h
+index 65e5b24..e8b2e96 100644
+--- a/include/sound/rcar.h
++++ b/include/sound/rcar.h
+@@ -20,56 +20,8 @@
+ #ifndef __SOUND_RCAR_H__
+ #define __SOUND_RCAR_H__
+ 
+-/************************************************************************
+-
+-	define
+-
+-************************************************************************/
+ /* direction */
+ #define	PLAY			0
+ #define	CAPT			1
+ 
+-/* mode */
+-#define SSI_MODE_MASTER		0	/* master mode	*/
+-#define SSI_MODE_SLAVE		1	/* slave mode	*/
+-#define CODEC_MODE_MASTER	0	/* master mode	*/
+-#define CODEC_MODE_SLAVE	1	/* slave mode	*/
+-
+-/* channel */
+-#define	STEREO			2
+-#define	MONO			1
+-
+-/************************************************************************
+-
+-	structure
+-
+-************************************************************************/
+-struct rcar_ssi_ctrl {
+-	unsigned char	m_s;	/* master/slave */
+-};
+-#define rcar_ssi_ctrl_t		struct rcar_ssi_ctrl
+-
+-struct rcar_codec_ctrl {
+-	unsigned char	m_s;	/* master/slave */
+-};
+-#define rcar_codec_ctrl_t	struct rcar_codec_ctrl
+-
+-struct rcar_pcm_ctrl {
+-	rcar_ssi_ctrl_t		ssi0;
+-	rcar_ssi_ctrl_t		ssi1;
+-	rcar_ssi_ctrl_t		ssi2;		/* not use */
+-	rcar_ssi_ctrl_t		ssi3;		/* not use */
+-	rcar_ssi_ctrl_t		ssi4;		/* not use */
+-	rcar_ssi_ctrl_t		ssi5;		/* not use */
+-	rcar_ssi_ctrl_t		ssi6;		/* not use */
+-	rcar_ssi_ctrl_t		ssi7;		/* not use */
+-	rcar_ssi_ctrl_t		ssi8;		/* not use */
+-	rcar_ssi_ctrl_t		ssi9;		/* not use */
+-	rcar_codec_ctrl_t	codec1;		/* AK4643 */
+-};
+-#define rcar_pcm_ctrl_t	struct rcar_pcm_ctrl
+-
+-#define SNDRV_RCAR_IOCTL_SET_PCM _IOW('H', 0x00, struct rcar_pcm_ctrl)
+-#define SNDRV_RCAR_IOCTL_GET_PCM _IOR('H', 0x01, struct rcar_pcm_ctrl)
+-
+ #endif	/* __SOUND_RCAR_H__ */
+diff --git a/sound/soc/rcar/rcar_ak4643.c b/sound/soc/rcar/rcar_ak4643.c
+index 76b0cab..28e2aff 100644
+--- a/sound/soc/rcar/rcar_ak4643.c
++++ b/sound/soc/rcar/rcar_ak4643.c
+@@ -40,7 +40,6 @@
+ 
+ ************************************************************************/
+ static struct snd_soc_card rcar_codec1_soc_card;
+-int sru_pcm_hwdep_new(struct snd_card *card, char *id);
+ 
+ static int rcar_codec1_dai_init(struct snd_soc_pcm_runtime *rtd)
+ {
+@@ -63,10 +62,6 @@ static int rcar_codec1_dai_init(struct snd_soc_pcm_runtime *rtd)
+ 		return ret;
+ 	}
+ 
+-	ret = sru_pcm_hwdep_new(rtd->card->snd_card, "sru_pcm0");
+-	if (ret)
+-		pr_err("sru_pcm_hwdep_new err=%d\n", ret);
+-
+ 	FNC_EXIT
+ 	return ret;
+ }
+diff --git a/sound/soc/rcar/sru_pcm.c b/sound/soc/rcar/sru_pcm.c
+index 16e95cf..217faf2 100644
+--- a/sound/soc/rcar/sru_pcm.c
++++ b/sound/soc/rcar/sru_pcm.c
+@@ -51,91 +51,6 @@ static void __iomem *adg_io;
+ 
+ static u64 dma_mask = DMA_BIT_MASK(32);
+ 
+-static struct rcar_pcm_ctrl rcar_pcm_hwdep = {
+-	.ssi0.m_s = SSI_MODE_MASTER,
+-	.ssi1.m_s = SSI_MODE_SLAVE,
+-	.ssi2.m_s = 0,
+-	.ssi3.m_s = 0,
+-	.ssi4.m_s = 0,
+-	.ssi5.m_s = 0,
+-	.ssi6.m_s = 0,
+-	.ssi7.m_s = 0,
+-	.ssi8.m_s = 0,
+-	.ssi9.m_s = 0,
+-	.codec1.m_s = CODEC_MODE_SLAVE,
+-};
+-
+-/************************************************************************
+-
+-	callback functions for snd_hwdep_ops structure
+-
+-************************************************************************/
+-static int sru_pcm_hwdep_open(struct snd_hwdep *hw, struct file *file)
+-{
+-	return 0;
+-}
+-
+-static int sru_pcm_hwdep_release(struct snd_hwdep *hw, struct file *file)
+-{
+-	return 0;
+-}
+-
+-static int sru_pcm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
+-			       unsigned int cmd, unsigned long arg)
+-{
+-	struct rcar_pcm_ctrl *info = hw->private_data;
+-	struct rcar_pcm_ctrl pset;
+-	int ret = 0;
+-
+-	FNC_ENTRY
+-	switch (cmd) {
+-	case SNDRV_RCAR_IOCTL_SET_PCM:
+-		ret = copy_from_user(&pset, (struct rcar_pcm_ctrl *)arg,
+-				     sizeof(pset));
+-		if (ret != 0)
+-			return -EFAULT;
+-
+-		/* If you want to set to Hardware Dependant Interface,
+-		please implement here. (SSI & CODEC) */
+-
+-		break;
+-	case SNDRV_RCAR_IOCTL_GET_PCM:
+-		pset = *info;
+-		ret = copy_to_user((void *)arg, &pset, sizeof(pset));
+-		if (ret != 0)
+-			return -EFAULT;
+-		break;
+-	default:
+-		pr_warn("not supported cmd=0x%08x\n", cmd);
+-		ret = -EINVAL;
+-		break;
+-	}
+-
+-	FNC_EXIT
+-	return ret;
+-}
+-
+-int sru_pcm_hwdep_new(struct snd_card *card, char *id)
+-{
+-	struct snd_hwdep *hw;
+-	int ret = 0;
+-
+-	FNC_ENTRY
+-	/* Add the new hwdep instance *//* 3rd argument is always 0 */
+-	ret = snd_hwdep_new(card, id, 0, &hw);
+-	if (ret < 0)
+-		return ret;
+-
+-	hw->private_data = &rcar_pcm_hwdep;
+-	hw->ops.open     = sru_pcm_hwdep_open;
+-	hw->ops.ioctl    = sru_pcm_hwdep_ioctl;
+-	hw->ops.release  = sru_pcm_hwdep_release;
+-
+-	FNC_EXIT
+-	return ret;
+-}
+-EXPORT_SYMBOL(sru_pcm_hwdep_new);
+-
+ /************************************************************************
+ 
+ 	basic function
+@@ -703,7 +618,6 @@ struct snd_soc_dai_driver sru_soc_dai[] = {
+ 		.ops = &sru_dai_ops,
+ 	},
+ };
+-EXPORT_SYMBOL_GPL(sru_soc_dai);
+ 
+ static struct snd_soc_platform_driver sru_soc_platform = {
+ 	.pcm_new	= sru_pcm_new,
+diff --git a/sound/soc/rcar/sru_pcm.h b/sound/soc/rcar/sru_pcm.h
+index 501f6fd..c5325fa 100644
+--- a/sound/soc/rcar/sru_pcm.h
++++ b/sound/soc/rcar/sru_pcm.h
+@@ -508,12 +508,4 @@ struct rcar_audio_info {
+ 	struct hpbdma_pregs *dmareg[2];	/* [0]:playback [1]:capture */
+ };
+ 
+-/************************************************************************
+-	external prototype declaration
+-************************************************************************/
+-extern struct snd_soc_dai_driver sru_soc_dai[];
+-
+-extern int sru_pcm_hwdep_new(struct snd_card *card, char *id);
+-extern void rcar_audio_init(int codec_id);
+-
+ #endif	/* __SRU_PCM_H__ */
+-- 
+1.7.9.5
+

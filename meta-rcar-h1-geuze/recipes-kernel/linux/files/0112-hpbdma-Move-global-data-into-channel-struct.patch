@@ -1,0 +1,94 @@
+From 963215e2c1d6cf14ca72fa4e53c4b09b2b1f6b5a Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 14 Feb 2013 20:47:50 +0000
+Subject: [PATCH 112/215] hpbdma: Move global data into channel struct
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c   |   22 ++++++++++------------
+ include/linux/rcar-hpbdma.h |    2 ++
+ 2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 6fba648..9654e6e 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -51,8 +51,6 @@ enum hpb_dmae_desc_status {
+ 
+ static struct hpb_dmae_device *g_hpbdev;
+ static const struct hpb_dmae_channel *g_chanp;
+-static int g_plane_cnt[HPB_DMAC_USE_CHANNELS];
+-static int g_desc_flag[HPB_DMAC_USE_CHANNELS];
+ 
+ /* A bitmask with bits enough for enum hpb_dmae_slave_chan_id */
+ static unsigned long hpb_dmae_slave_used[BITS_TO_LONGS(HPB_DMA_SLAVE_NUMBER)];
+@@ -373,25 +371,25 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 				dmae_set_reg0(hpb_chan, &desc->hw);
+ 				dmae_start(hpb_chan);
+ 			} else { /* TRAN_DOUBLE */
+-				if (g_plane_cnt[id] == PLANE_ON) {
++				if (hpb_chan->plane_cnt == PLANE_ON) {
+ 					dmae_set_reg0(hpb_chan, &desc->hw);
+-					if (g_desc_flag[id] == PLANE_ON) {
++					if (hpb_chan->desc_flag == PLANE_ON) {
+ 						dev_dbg(hpb_chan->dev,
+ 							"-- first plane --\n");
+ 						dmae_start(hpb_chan);
+-						g_desc_flag[id] = PLANE_OFF;
++						hpb_chan->desc_flag = PLANE_OFF;
+ 					} else {
+ 						dev_dbg(hpb_chan->dev,
+ 							"-- 2 plane --\n");
+ 						dmae_next_start(hpb_chan);
+ 					}
+-					g_plane_cnt[id] = PLANE_OFF;
+-				} else { /* g_plane_cnt[id] == PLANE_OFF */
++					hpb_chan->plane_cnt = PLANE_OFF;
++				} else { /* hpb_chan->plane_cnt == PLANE_OFF */
+ 					dmae_set_reg1(hpb_chan, &desc->hw);
+ 					dev_dbg(hpb_chan->dev,
+ 						"-- 1 plane --\n");
+ 					dmae_next_start(hpb_chan);
+-					g_plane_cnt[id] = PLANE_ON;
++					hpb_chan->plane_cnt = PLANE_ON;
+ 				}
+ 				desc->mark = DESC_SETTING;
+ 			}
+@@ -601,8 +599,8 @@ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ 
+ 	dmae_halt(hpb_chan);
+ 
+-	g_plane_cnt[hpb_chan->id] = PLANE_ON;
+-	g_desc_flag[hpb_chan->id] = PLANE_ON;
++	hpb_chan->plane_cnt = PLANE_ON;
++	hpb_chan->desc_flag = PLANE_ON;
+ 
+ 	/* Prepared and not submitted descriptors can still be on the queue */
+ 	if (!list_empty(&hpb_chan->ld_queue))
+@@ -1040,8 +1038,8 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 	new_hpb_chan->dev = hpbdev->common.dev;
+ 	new_hpb_chan->id = id;
+ 
+-	g_plane_cnt[new_hpb_chan->id] = PLANE_ON;
+-	g_desc_flag[new_hpb_chan->id] = PLANE_ON;
++	new_hpb_chan->plane_cnt = PLANE_ON;
++	new_hpb_chan->desc_flag = PLANE_ON;
+ 
+ 	if (pdev->id >= 0)
+ 		snprintf(new_hpb_chan->dev_id, sizeof(new_hpb_chan->dev_id),
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index 1ca6418..94fa39c 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -188,6 +188,8 @@ struct hpb_dmae_chan {
+ 	int tran_mode;			/* DMA transfer mode */
+ 	u32 __iomem *base;
+ 	char dev_id[16];		/* unique name per DMAC of channel */
++	int plane_cnt;
++	int desc_flag;
+ };
+ 
+ struct hpb_dmae_device {
+-- 
+1.7.9.5
+

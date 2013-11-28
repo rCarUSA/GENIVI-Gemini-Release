@@ -1,0 +1,45 @@
+From 076b4b841e99f224e9876d24ccbd426eb5e2f6b2 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 12 Nov 2012 17:26:24 +0000
+Subject: [PATCH 174/215] marzen: Add pinmux for additional serial channels
+
+Add pinmux for SCIF0, SCIF1 and SCIF3.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/board-marzen.c |   12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/board-marzen.c b/arch/arm/mach-shmobile/board-marzen.c
+index 10ead69..f8ebb62 100644
+--- a/arch/arm/mach-shmobile/board-marzen.c
++++ b/arch/arm/mach-shmobile/board-marzen.c
+@@ -898,6 +898,14 @@ static void __init marzen_init(void)
+ 
+ 	r8a7779_pinmux_init();
+ 
++	/* SCIF0 */
++	gpio_request(GPIO_FN_TX0_B, NULL);
++	gpio_request(GPIO_FN_RX0_B, NULL);
++
++	/* SCIF1 */
++	gpio_request(GPIO_FN_TX1, NULL);
++	gpio_request(GPIO_FN_RX1, NULL);
++
+ 	/* SCIF2 (CN18: DEBUG0) */
+ 	gpio_request(GPIO_FN_TX2_C, NULL);
+ 	gpio_request(GPIO_FN_RX2_C, NULL);
+@@ -906,6 +914,10 @@ static void __init marzen_init(void)
+ 	gpio_request(GPIO_FN_TX4, NULL);
+ 	gpio_request(GPIO_FN_RX4, NULL);
+ 
++	/* SCIF3 */
++	gpio_request(GPIO_FN_TX3_IRDA_TX, NULL);
++	gpio_request(GPIO_FN_RX3_IRDA_RX, NULL);
++
+ 	/* LAN89218 */
+ 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
+ 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
+-- 
+1.7.9.5
+

@@ -1,0 +1,66 @@
+From 1f1e8e09be2df92a11c409c222117fbad565c47b Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 09:39:41 +0000
+Subject: [PATCH 121/215] dmaengine: hpbdma: add to_hpb_dev define
+
+This patch adds "to_hpb_dev" macro, and clean up codes.
+
+Based on commit c4e0dd7835d12d9765a372b586a5020ac29cc706
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c   |   10 +++-------
+ include/linux/rcar-hpbdma.h |    2 ++
+ 2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 4fbc677..0b01328 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -176,8 +176,7 @@ static int hpb_dmae_rst(struct hpb_dmae_device *hpbdev)
+ 
+ static unsigned int calc_xmit_shift(struct hpb_dmae_chan *hpb_chan)
+ {
+-	struct hpb_dmae_device *hpbdev = container_of(hpb_chan->common.device,
+-						struct hpb_dmae_device, common);
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_pdata *pdata = hpbdev->pdata;
+ 
+ 	int cnt;
+@@ -309,9 +308,7 @@ static struct hpb_desc *hpb_dmae_get_desc(struct hpb_dmae_chan *hpb_chan)
+ static const struct hpb_dmae_slave_config *hpb_dmae_find_slave(
+ 	struct hpb_dmae_chan *hpb_chan, struct hpb_dmae_slave *param)
+ {
+-	struct dma_device *dma_dev = hpb_chan->common.device;
+-	struct hpb_dmae_device *hpbdev = container_of(dma_dev,
+-					struct hpb_dmae_device, common);
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_pdata *pdata = hpbdev->pdata;
+ 
+ 	int i;
+@@ -329,8 +326,7 @@ static void dmae_do_tasklet(unsigned long data);
+ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ {
+ 	struct hpb_desc *desc;
+-	struct hpb_dmae_device *hpbdev = container_of(hpb_chan->common.device,
+-						struct hpb_dmae_device, common);
++	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_slave *param = hpb_chan->common.private;
+ 	int id = hpb_chan->id;
+ 
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index e5e5750..57ace13 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -167,6 +167,8 @@
+ #define to_hpb_chan(chan) container_of(chan, struct hpb_dmae_chan, common)
+ #define to_hpb_desc(lh) container_of(lh, struct hpb_desc, node)
+ #define tx_to_hpb_desc(tx) container_of(tx, struct hpb_desc, async_tx)
++#define to_hpb_dev(chan) container_of(chan->common.device,\
++				     struct hpb_dmae_device, common)
+ 
+ #define TRAN_SINGLE	1
+ #define TRAN_DOUBLE	2
+-- 
+1.7.9.5
+

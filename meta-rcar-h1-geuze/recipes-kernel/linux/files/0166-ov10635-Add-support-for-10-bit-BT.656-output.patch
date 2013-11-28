@@ -1,0 +1,142 @@
+From 76b77327e0197d7f164ea519ad2bbe32f94e9e77 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 11 Jan 2013 16:44:03 +0000
+Subject: [PATCH 166/215] ov10635: Add support for 10-bit BT.656 output
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/media/video/ov10635.c |   70 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 55 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/media/video/ov10635.c b/drivers/media/video/ov10635.c
+index be297ca..e6ac503 100644
+--- a/drivers/media/video/ov10635.c
++++ b/drivers/media/video/ov10635.c
+@@ -300,6 +300,12 @@ static const struct ov10635_reg ov10635_regs_bt656[] = {
+ 	{ 0x4309, 0x08 },
+ };
+ 
++static const struct ov10635_reg ov10635_regs_bt656_10bit[] = {
++	{ 0x4700, 0x02 }, { 0x4302, 0x03 }, { 0x4303, 0xfe }, { 0x4304, 0x00 },
++	{ 0x4305, 0x02 }, { 0x4306, 0x03 }, { 0x4307, 0xfe }, { 0x4308, 0x00 },
++	{ 0x4309, 0x02 },
++};
++
+ static const struct ov10635_reg ov10635_regs_vert_sub_sample[] = {
+ 	{ 0x381f, 0x06 }, { 0x4001, 0x02 }, { 0x4004, 0x02 }, { 0x4050, 0x10 },
+ 	{ 0x4051, 0x11 }, { 0x6e47, 0x06 }, { 0x4610, 0x03 }, { 0x4613, 0x0a },
+@@ -324,6 +330,10 @@ static const struct ov10635_color_format ov10635_cfmts[] = {
+ 		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+ 		.colorspace	= V4L2_COLORSPACE_SMPTE170M,
+ 	},
++	{
++		.code		= V4L2_MBUS_FMT_YUYV10_2X10,
++		.colorspace	= V4L2_COLORSPACE_SMPTE170M,
++	},
+ };
+ 
+ static struct ov10635_priv *to_ov10635(const struct i2c_client *client)
+@@ -649,21 +659,35 @@ static int ov10635_set_params(struct i2c_client *client, u32 *width,
+ 	if (ret)
+ 		return ret;
+ 
+-	/* Set mode to BT.656 */
+-	ret = ov10635_set_regs(client, ov10635_regs_bt656,
+-		ARRAY_SIZE(ov10635_regs_bt656));
+-	if (ret)
+-		return ret;
+-
+ 	/* Set format to UYVY */
+ 	ret = ov10635_reg_write(client, 0x4300, 0x3a);
+ 	if (ret)
+ 		return ret;
+ 
+-	/* Set output to 8-bit yuv (default is 10-bit) */
+-	ret = ov10635_reg_write(client, 0x4605, 0x08);
+-	if (ret)
+-		return ret;
++	if (priv->cfmt->code == V4L2_MBUS_FMT_YUYV8_2X8) {
++		/* Set mode to 8-bit BT.656 */
++		ret = ov10635_set_regs(client, ov10635_regs_bt656,
++			ARRAY_SIZE(ov10635_regs_bt656));
++		if (ret)
++			return ret;
++
++		/* Set output to 8-bit yuv */
++		ret = ov10635_reg_write(client, 0x4605, 0x08);
++		if (ret)
++			return ret;
++	} else {
++		/* V4L2_MBUS_FMT_YUYV10_2X10 */
++		/* Set mode to 10-bit BT.656 */
++		ret = ov10635_set_regs(client, ov10635_regs_bt656_10bit,
++			ARRAY_SIZE(ov10635_regs_bt656_10bit));
++		if (ret)
++			return ret;
++
++		/* Set output to 10-bit yuv */
++		ret = ov10635_reg_write(client, 0x4605, 0x00);
++		if (ret)
++			return ret;
++	}
+ 
+ 	/* Horizontal cropping */
+ 	ret = ov10635_reg_write(client, 0x3621, horiz_crop_mode);
+@@ -771,6 +795,11 @@ static int ov10635_set_params(struct i2c_client *client, u32 *width,
+ 	/* Wait for settings to take effect */
+ 	mdelay(300);
+ 
++	if (priv->cfmt->code == V4L2_MBUS_FMT_YUYV8_2X8)
++		dev_dbg(&client->dev, "Using 8-bit BT.656\n");
++	else
++		dev_dbg(&client->dev, "Using 10-bit BT.656\n");
++
+ 	return 0;
+ 
+ ov10635_set_fmt_error:
+@@ -787,10 +816,16 @@ static int ov10635_g_fmt(struct v4l2_subdev *sd,
+ {
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+ 	struct ov10635_priv *priv = to_ov10635(client);
+-
++	enum v4l2_mbus_pixelcode code;
+ 	u32 width = MAX_WIDTH, height = MAX_HEIGHT;
+-	int ret = ov10635_set_params(client, &width, &height,
+-				    V4L2_MBUS_FMT_YUYV8_2X8);
++	int ret;
++
++	if (priv->cfmt)
++		code = priv->cfmt->code;
++	else
++		code = V4L2_MBUS_FMT_YUYV8_2X8;
++
++	ret = ov10635_set_params(client, &width, &height, code);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -885,6 +920,7 @@ static int ov10635_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+ 	struct ov10635_priv *priv = to_ov10635(client);
+ 	struct v4l2_captureparm *cp = &parms->parm.capture;
++	enum v4l2_mbus_pixelcode code;
+ 	int ret;
+ 
+ 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+@@ -896,8 +932,12 @@ static int ov10635_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+ 	priv->fps_denominator = cp->timeperframe.numerator;
+ 	priv->fps_numerator = cp->timeperframe.denominator;
+ 
+-	ret = ov10635_set_params(client, &priv->width, &priv->height,
+-		V4L2_MBUS_FMT_YUYV8_2X8);
++	if (priv->cfmt)
++		code = priv->cfmt->code;
++	else
++		code = V4L2_MBUS_FMT_YUYV8_2X8;
++
++	ret = ov10635_set_params(client, &priv->width, &priv->height, code);
+ 	if (ret < 0)
+ 		return ret;
+ 
+-- 
+1.7.9.5
+

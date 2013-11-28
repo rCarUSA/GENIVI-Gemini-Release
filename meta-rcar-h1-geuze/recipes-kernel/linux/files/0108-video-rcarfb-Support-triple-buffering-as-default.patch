@@ -1,0 +1,40 @@
+From 1639db839235ecea81c0a1783e1caa8bd9267f80 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Tue, 8 Jan 2013 17:16:06 +0000
+Subject: [PATCH 108/215] video: rcarfb: Support triple buffering as default
+
+This change increase the size of the virtual framebuffer from twice
+the display size to three times.
+To reduce memory usage, you can just change the PLANE_NUM definition
+to 2.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/video/rcarfb.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/video/rcarfb.c b/drivers/video/rcarfb.c
+index 4aba68a..5dde401 100644
+--- a/drivers/video/rcarfb.c
++++ b/drivers/video/rcarfb.c
+@@ -34,7 +34,7 @@
+ 
+ #define PALETTE_NR	256
+ #define DEV_NAME	"rcarfb"
+-#define PLANE_NUM	2
++#define PLANE_NUM	3
+ 
+ static char __devinitdata *mode_option[2] = { "640x480-16", "640x480-16" };
+ 
+@@ -862,7 +862,7 @@ static int __devinit rcar_du_probe(struct platform_device *pdev)
+ 	fb_var_to_videomode(&priv->current_mode, &info->var);
+ 
+ 	info->var.xres_virtual = info->var.xres;
+-	info->var.yres_virtual = info->var.yres * 2; /* for double buffer */
++	info->var.yres_virtual = info->var.yres * PLANE_NUM;
+ 
+ 	error = rcar_du_check_var(&info->var, info);
+ 	if (error)
+-- 
+1.7.9.5
+

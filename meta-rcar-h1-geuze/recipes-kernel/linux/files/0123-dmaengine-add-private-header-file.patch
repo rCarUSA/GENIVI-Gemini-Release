@@ -1,0 +1,34 @@
+From 5ac3af9022c80eeee4c38686e55d26413103f562 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 13:47:59 +0000
+Subject: [PATCH 123/215] dmaengine: add private header file
+
+Add a local private header file to contain definitions and declarations
+which should only be used by DMA engine drivers.
+
+We also fix linux/dmaengine.h to use LINUX_DMAENGINE_H to guard against
+multiple inclusion.
+
+Based on commit d2ebfb335b0426deb1a4fb14e4e926d81ecd8235
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 01eca11..269e726 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -35,6 +35,8 @@
+ #include <linux/rcar-hpbdma.h>
+ #include <mach/irqs.h>
+ 
++#include "dmaengine.h"
++
+ /* DMA descriptor control */
+ enum hpb_dmae_desc_status {
+ 	DESC_IDLE,
+-- 
+1.7.9.5
+

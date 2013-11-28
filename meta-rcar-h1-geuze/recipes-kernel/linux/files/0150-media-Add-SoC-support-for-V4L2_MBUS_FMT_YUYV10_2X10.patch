@@ -1,0 +1,75 @@
+From 02e4fc46b7cf7dd8fc8abbfcdc697c90f73fefff Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 11 Jan 2013 16:42:12 +0000
+Subject: [PATCH 150/215] media: Add SoC support for V4L2_MBUS_FMT_YUYV10_2X10
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/media/video/soc_mediabus.c |   15 +++++++++++++++
+ include/media/soc_mediabus.h       |    3 +++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/drivers/media/video/soc_mediabus.c b/drivers/media/video/soc_mediabus.c
+index 126cfe7..e402e64 100644
+--- a/drivers/media/video/soc_mediabus.c
++++ b/drivers/media/video/soc_mediabus.c
+@@ -53,6 +53,15 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
+ 		.order			= SOC_MBUS_ORDER_LE,
+ 	},
+ }, {
++	.code = V4L2_MBUS_FMT_YUYV10_2X10,
++	.fmt = {
++		.fourcc			= V4L2_PIX_FMT_YUYV,
++		.name			= "YUYV",
++		.bits_per_sample	= 10,
++		.packing		= SOC_MBUS_PACKING_2X10_PADHI,
++		.order			= SOC_MBUS_ORDER_LE,
++	},
++}, {
+ 	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+ 	.fmt = {
+ 		.fourcc			= V4L2_PIX_FMT_RGB555,
+@@ -361,6 +370,10 @@ int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
+ 		*numerator = 2;
+ 		*denominator = 1;
+ 		return 0;
++	case SOC_MBUS_PACKING_2X10_PADHI:
++		*numerator = 3;
++		*denominator = 1;
++		return 0;
+ 	case SOC_MBUS_PACKING_1_5X8:
+ 		*numerator = 3;
+ 		*denominator = 2;
+@@ -383,6 +396,8 @@ s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
+ 	case SOC_MBUS_PACKING_2X8_PADLO:
+ 	case SOC_MBUS_PACKING_EXTEND16:
+ 		return width * 2;
++	case SOC_MBUS_PACKING_2X10_PADHI:
++		return width * 3;
+ 	case SOC_MBUS_PACKING_1_5X8:
+ 		return width * 3 / 2;
+ 	case SOC_MBUS_PACKING_VARIABLE:
+diff --git a/include/media/soc_mediabus.h b/include/media/soc_mediabus.h
+index 6a022ab..7e3a9eb 100644
+--- a/include/media/soc_mediabus.h
++++ b/include/media/soc_mediabus.h
+@@ -21,6 +21,8 @@
+  * @SOC_MBUS_PACKING_2X8_PADHI:	16 bits transferred in 2 8-bit samples, in the
+  *				possibly incomplete byte high bits are padding
+  * @SOC_MBUS_PACKING_2X8_PADLO:	as above, but low bits are padding
++ * @SOC_MBUS_PACKING_2X10_PADHI:20 bits transferred in 2 10-bit samples. The
++ *				high bits are padding
+  * @SOC_MBUS_PACKING_EXTEND16:	sample width (e.g., 10 bits) has to be extended
+  *				to 16 bits
+  * @SOC_MBUS_PACKING_VARIABLE:	compressed formats with variable packing
+@@ -33,6 +35,7 @@ enum soc_mbus_packing {
+ 	SOC_MBUS_PACKING_NONE,
+ 	SOC_MBUS_PACKING_2X8_PADHI,
+ 	SOC_MBUS_PACKING_2X8_PADLO,
++	SOC_MBUS_PACKING_2X10_PADHI,
+ 	SOC_MBUS_PACKING_EXTEND16,
+ 	SOC_MBUS_PACKING_VARIABLE,
+ 	SOC_MBUS_PACKING_1_5X8,
+-- 
+1.7.9.5
+

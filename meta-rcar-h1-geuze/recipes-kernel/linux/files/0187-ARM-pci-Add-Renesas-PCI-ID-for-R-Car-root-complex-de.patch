@@ -1,0 +1,26 @@
+From 295093e930b4aeb54c3fc20886c0d12c3b2cd8c4 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Mar 2013 13:46:53 +0000
+Subject: [PATCH 187/215] ARM: pci: Add Renesas PCI ID for R-Car root complex
+ devices
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ include/linux/pci_ids.h |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/pci_ids.h b/include/linux/pci_ids.h
+index d7dbf4e..410c1c9 100644
+--- a/include/linux/pci_ids.h
++++ b/include/linux/pci_ids.h
+@@ -2329,6 +2329,7 @@
+ #define PCI_DEVICE_ID_RENESAS_SH7763	0x0004
+ #define PCI_DEVICE_ID_RENESAS_SH7785	0x0007
+ #define PCI_DEVICE_ID_RENESAS_SH7786	0x0010
++#define PCI_DEVICE_ID_RENESAS_RCAR	0x0018
+ 
+ #define PCI_VENDOR_ID_SOLARFLARE	0x1924
+ #define PCI_DEVICE_ID_SOLARFLARE_SFC4000A_0	0x0703
+-- 
+1.7.9.5
+

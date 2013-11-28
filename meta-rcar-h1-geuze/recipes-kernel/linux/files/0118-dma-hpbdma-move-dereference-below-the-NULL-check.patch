@@ -1,0 +1,38 @@
+From 3e23b7f46c108c4fca809cf19675bddf9f709317 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 16:49:05 +0000
+Subject: [PATCH 118/215] dma/hpbdma: move dereference below the NULL check
+
+"param" can be NULL here, so only dereference it after the check.
+
+Based on commit 9f9ff20d46c6728b092f34b6a642e1e81ab5e254
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 724d5e2..b060636 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -796,7 +796,6 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_slave_sg(
+ 
+ 	hpb_chan = to_hpb_chan(chan);
+ 	param = chan->private;
+-	slave_addr = param->config->addr;
+ 
+ 	/* Someone calling slave DMA on a public channel? */
+ 	if (!param || !sg_len) {
+@@ -805,6 +804,8 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_slave_sg(
+ 		return NULL;
+ 	}
+ 
++	slave_addr = param->config->addr;
++
+ 	/*
+ 	 * if (param != NULL), this is a successfully requested slave channel,
+ 	 * therefore param->config != NULL too.
+-- 
+1.7.9.5
+

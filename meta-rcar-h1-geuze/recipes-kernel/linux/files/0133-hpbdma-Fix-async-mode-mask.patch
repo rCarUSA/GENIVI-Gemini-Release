@@ -1,0 +1,40 @@
+From 1b105e956b53d87f1391e6a401dd4b0867e2ffea Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 25 Feb 2013 11:54:53 +0000
+Subject: [PATCH 133/215] hpbdma: Fix async mode mask
+
+Several channels were missing.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ include/linux/rcar-hpbdma.h |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index e0955e7..be3ce0e 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -129,7 +129,8 @@
+ #define		ASBTMD21_BURST	(1 << 2)	/* SDHI1 */
+ #define		ASBTMD21_NBURST	(0 << 2)	/* SDHI1 */
+ 
+-#define MD_MASK(x)	((x == 21) ? (3 << 2) : \
++#define MD_MASK(x)	((x == 20) ? (3 << 0) : \
++			((x == 21) ? (3 << 2) : \
+ 			((x == 22) ? (3 << 4) : \
+ 			((x == 23) ? (3 << 6) : \
+ 			((x == 25) ? (3 << 8) : \
+@@ -137,7 +138,9 @@
+ 			((x == 27) ? (3 << 12) : \
+ 			((x == 39) ? (3 << 14) : \
+ 			((x == 40) ? (3 << 16) : \
+-			((x == 41) ? (3 << 18) : 0)))))))))
++			((x == 41) ? (3 << 18) : \
++			((x == 24) ? (3 << 20) : \
++			((x == 43) ? (3 << 22) : 0))))))))))))
+ 
+ /* DMA common register*/
+ #define DTIMR			0x00
+-- 
+1.7.9.5
+

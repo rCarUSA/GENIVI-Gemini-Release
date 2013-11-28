@@ -1,0 +1,76 @@
+From b15590222ffd1754596cc3e392010b3d92671e23 Mon Sep 17 00:00:00 2001
+From: James Gomez <james.gomez@renesas.com>
+Date: Thu, 7 Mar 2013 15:29:00 +0000
+Subject: [PATCH 148/215] ARM: shmobile: r8a7779: MMC: Added IRQ vectors for
+ MMC
+
+Added support for MMC IRQ vectors for the R-Car H1
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/include/mach/irqs.h |    6 +++++-
+ arch/arm/mach-shmobile/intc-r8a7779.c      |   24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-shmobile/include/mach/irqs.h b/arch/arm/mach-shmobile/include/mach/irqs.h
+index 9657c97..10fcfbc 100644
+--- a/arch/arm/mach-shmobile/include/mach/irqs.h
++++ b/arch/arm/mach-shmobile/include/mach/irqs.h
+@@ -15,7 +15,11 @@
+ #define IRQ_USBH_0_EHCI (209 + 1)
+ #define IRQ_USBH_1_OHCI (209 + 2)
+ #define IRQ_USBH_1_EHCI (209 + 3)
++#define IRQ_MMC_0_ERR   (209 + 4)
++#define IRQ_MMC_0_ACC   (209 + 5)
++#define IRQ_MMC_1_ERR   (209 + 6)
++#define IRQ_MMC_1_ACC   (209 + 7)
+ 
+-#define IRQ_DMAC_H(n)	(209 + 4 + (n))
++#define IRQ_DMAC_H(n)	(209 + 8 + (n))
+ 
+ #endif /* __ASM_MACH_IRQS_H */
+diff --git a/arch/arm/mach-shmobile/intc-r8a7779.c b/arch/arm/mach-shmobile/intc-r8a7779.c
+index a29276b..d1f7755 100644
+--- a/arch/arm/mach-shmobile/intc-r8a7779.c
++++ b/arch/arm/mach-shmobile/intc-r8a7779.c
+@@ -66,6 +66,18 @@ static struct intc2_child usbh1_child[] = {
+ };
+ 
+ /*
++ * MMCIF children
++ */
++static struct intc2_child mmc0_child[] = {
++	{ (1<<1), IRQ_MMC_0_ERR },
++	{ (1<<2), IRQ_MMC_0_ACC },
++};
++static struct intc2_child mmc1_child[] = {
++	{ (1<<17), IRQ_MMC_1_ERR },
++	{ (1<<18), IRQ_MMC_1_ACC },
++};
++
++/*
+  * HPB-DMAC children
+  */
+ static struct intc2_child dmach00_10_child[] = {
+@@ -154,6 +166,18 @@ static struct intc2_parent intc2_parent_desc[] = {
+ 		usbh1_child
+ 	},
+ 	{
++		gic_spi(70),
++		IOMEM(0xFE782064),
++		ARRAY_SIZE(mmc0_child),
++		mmc0_child
++	},
++	{
++		gic_spi(71),
++		IOMEM(0xFE782064),
++		ARRAY_SIZE(mmc1_child),
++		mmc1_child
++	},
++	{
+ 		gic_spi(110),
+ 		IOMEM(0xfe782104),
+ 		ARRAY_SIZE(dmach00_10_child),
+-- 
+1.7.9.5
+

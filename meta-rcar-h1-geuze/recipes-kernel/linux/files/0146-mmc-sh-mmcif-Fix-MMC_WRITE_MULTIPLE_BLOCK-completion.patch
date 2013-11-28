@@ -1,0 +1,48 @@
+From 53418db714507d01938834cd12b12b34347d883d Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 21 Feb 2013 14:33:16 +0000
+Subject: [PATCH 146/215] mmc: sh-mmcif: Fix MMC_WRITE_MULTIPLE_BLOCK
+ completion IRQ handling
+
+Upon completion of a MMC_WRITE_MULTIPLE_BLOCK command MMCIF issues an IRQ
+with the BUFREN or BUFWEN bits set and often with one or several of CMD12
+bits set.
+
+If those interrupts are not acknowledged, an additional interrupt can be
+produced and will be delivered later, possibly when the transaction has
+already been completed. To prevent this from happening, CMD12 completion
+interrupt sources have to be cleared too upon reception of a BUFREN or
+BUFWEN IRQ.
+
+This is similar to commit 7a7eb328; this change adds the same handling for
+BUFREN and BUFWEN interrupts.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/mmc/host/sh_mmcif.c |    8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mmc/host/sh_mmcif.c b/drivers/mmc/host/sh_mmcif.c
+index 69a9aaa..c296f14 100644
+--- a/drivers/mmc/host/sh_mmcif.c
++++ b/drivers/mmc/host/sh_mmcif.c
+@@ -1170,10 +1170,14 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
+ 		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~INT_CRSPE);
+ 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MCRSPE);
+ 	} else if (state & INT_BUFREN) {
+-		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~INT_BUFREN);
++		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
++			~(INT_CMD12DRE | INT_CMD12RBE |
++			  INT_CMD12CRE | INT_BUFREN));
+ 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MBUFREN);
+ 	} else if (state & INT_BUFWEN) {
+-		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~INT_BUFWEN);
++		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
++			~(INT_CMD12DRE | INT_CMD12RBE |
++			  INT_CMD12CRE | INT_BUFWEN));
+ 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MBUFWEN);
+ 	} else if (state & INT_CMD12DRE) {
+ 		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
+-- 
+1.7.9.5
+

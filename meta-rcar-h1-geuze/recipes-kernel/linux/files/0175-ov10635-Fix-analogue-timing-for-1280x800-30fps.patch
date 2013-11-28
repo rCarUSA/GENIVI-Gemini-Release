@@ -1,0 +1,29 @@
+From 057ca584659d84a2ee7b1ca6d76b4fb6ad38ef45 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 11 Mar 2013 16:23:01 +0000
+Subject: [PATCH 175/215] ov10635: Fix analogue timing for 1280x800@30fps
+
+At 1280x800 at 30fps, the timings previously used do not work. This
+change increases the HTS setting to fix it.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/media/video/ov10635.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/video/ov10635.c b/drivers/media/video/ov10635.c
+index e6ac503..98a5e26 100644
+--- a/drivers/media/video/ov10635.c
++++ b/drivers/media/video/ov10635.c
+@@ -521,7 +521,7 @@ static int ov10635_get_pclk(int xvclk, int *htsmin, int *vtsmin,
+ 				if (pclk > 96000000)
+ 					continue;
+ 
+-				hts = *htsmin + 200 + pclk/300000;
++				hts = *htsmin + 210 + pclk/300000;
+ 
+ 				/* 2 clock cycles for every YUV422 pixel */
+ 				if (pclk < (((hts * *vtsmin)/fps_denominator)
+-- 
+1.7.9.5
+

@@ -1,0 +1,64 @@
+From 2b3b6daf47c8a22997f21caec98d057d9292c527 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Tue, 12 Mar 2013 09:57:48 +0000
+Subject: [PATCH 179/215] ARM: shmobile: Add DMA config for audio SSI7 and
+ SSI8
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c              |   18 ++++++++++++++++++
+ arch/arm/mach-shmobile/include/mach/hpb-dmae.h |    2 ++
+ 2 files changed, 20 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 5c81ba8..1ecb596 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -100,6 +100,20 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.flags	= 0,
+ 		.dma_ch	= 29,
+ 	}, {
++		.id	= HPBDMA_SLAVE_SSI7_TX_ST,
++		.addr	= 0xffd91000 + (7*SSI_CHAN_OFFSET) + SSI_TX_OFFSET,
++		.dcr	= CT | DIP | SPDS_32BIT | DMDL | DPDS_32BIT,
++		.port	= 0x0707,
++		.flags	= 0,
++		.dma_ch	= 35,
++	}, {
++		.id	= HPBDMA_SLAVE_SSI8_RX_ST,
++		.addr	= 0xffd91000 + (8*SSI_CHAN_OFFSET) + SSI_RX_OFFSET,
++		.dcr	= CT | DIP | SMDL | SPDS_32BIT | DPDAM | DPDS_32BIT,
++		.port	= 0x0808,
++		.flags	= 0,
++		.dma_ch	= 36,
++	}, {
+ 		.id	= HPBDMA_SLAVE_MMC1_TX,
+ 		.addr	= 0xffe5b000 + 0x34,
+ 		.dcr	= SPDS_32BIT | DMDL | DPDS_32BIT,
+@@ -138,6 +152,10 @@ static const struct hpb_dmae_channel rcar_dmae_channels[] = {
+ 	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_ST),
+ 	/* ch.29 SSI1 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_ST),
++	/* ch.35 SSI7 */
++	DMAE_CHANNEL(IRQ_DMAC_H(35), HPBDMA_SLAVE_SSI7_TX_ST),
++	/* ch.36 SSI8 */
++	DMAE_CHANNEL(IRQ_DMAC_H(36), HPBDMA_SLAVE_SSI8_RX_ST),
+ 	/* ch.43 MMC1 */
+ 	/*DMAE_CHANNEL(IRQ_DMAC_H(43), HPBDMA_SLAVE_MMC1_TX),*/
+ 	/*DMAE_CHANNEL(IRQ_DMAC_H(43), HPBDMA_SLAVE_MMC1_RX),*/
+diff --git a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+index ef87b34..dcd4715 100644
+--- a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
++++ b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+@@ -31,6 +31,8 @@ enum {
+ 	HPBDMA_SLAVE_MMC0_RX,		/*Ch.24*/
+ 	HPBDMA_SLAVE_SSI0_TX_ST,	/*Ch.28*/
+ 	HPBDMA_SLAVE_SSI1_RX_ST,	/*Ch.29*/
++	HPBDMA_SLAVE_SSI7_TX_ST,	/*Ch.35*/
++	HPBDMA_SLAVE_SSI8_RX_ST,	/*Ch.36*/
+ 	HPBDMA_SLAVE_MMC1_TX,		/*Ch.43*/
+ 	HPBDMA_SLAVE_MMC1_RX,		/*Ch.43*/
+ };
+-- 
+1.7.9.5
+

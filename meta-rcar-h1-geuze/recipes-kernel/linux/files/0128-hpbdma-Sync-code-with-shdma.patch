@@ -1,0 +1,228 @@
+From 331aa7a7fc2d66c46160351de058a19d64fca466 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 15:57:05 +0000
+Subject: [PATCH 128/215] hpbdma: Sync code with shdma
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   54 +++++++++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 22 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 40a21e2..b37f017 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -269,7 +269,6 @@ static dma_cookie_t hpb_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
+ 		/* Callback goes to the last chunk */
+ 		chunk->async_tx.callback = NULL;
+ 		chunk->cookie = cookie;
+-
+ 		list_move_tail(&chunk->node, &hpb_chan->ld_queue);
+ 		last = chunk;
+ 	}
+@@ -306,8 +305,8 @@ static const struct hpb_dmae_slave_config *hpb_dmae_find_slave(
+ {
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_pdata *pdata = hpbdev->pdata;
+-
+ 	int i;
++
+ 	if (param->slave_id >= HPB_DMA_SLAVE_NUMBER)
+ 		return NULL;
+ 
+@@ -325,13 +324,12 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 	struct hpb_desc *desc;
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_slave *param = hpb_chan->common.private;
+-	int id = hpb_chan->id;
+ 
+ 	/* Find the first not transferred descriptor */
+ 	list_for_each_entry(desc, &hpb_chan->ld_queue, node) {
+ 		if (desc->mark == DESC_SUBMITTED) {
+ 			dev_dbg(hpb_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",
+-				desc->async_tx.cookie, id,
++				desc->async_tx.cookie, hpb_chan->id,
+ 				desc->hw.tcr, desc->hw.sar, desc->hw.dar);
+ 
+ 			if (param->config->flags & HPB_DMAE_SET_ASYNC_RESET)
+@@ -386,7 +384,6 @@ static void dmae_do_tasklet(unsigned long data)
+ 			break;
+ 		}
+ 	}
+-
+ 	/* Next desc */
+ 	hpb_chan_xfer_ld_queue(hpb_chan);
+ 	spin_unlock_irq(&hpb_chan->desc_lock);
+@@ -396,10 +393,12 @@ static void dmae_do_tasklet(unsigned long data)
+ 
+ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ {
+-	u32 ch;
+ 	irqreturn_t ret = IRQ_NONE;
++	struct hpb_dmae_chan *hpb_chan = data;
+ 	struct hpb_dmae_device *hpbdev;
+-	struct hpb_dmae_chan *hpb_chan = (struct hpb_dmae_chan *)data;
++	u32 ch;
++
++	spin_lock(&hpb_chan->desc_lock);
+ 
+ 	ch = irq - IRQ_DMAC_H(0); /* DMA Channel No.*/
+ 
+@@ -413,6 +412,8 @@ static irqreturn_t hpb_dmae_interrupt(int irq, void *data)
+ 		tasklet_schedule(&hpb_chan->tasklet);
+ 	}
+ 
++	spin_unlock(&hpb_chan->desc_lock);
++
+ 	return ret;
+ }
+ 
+@@ -451,13 +452,14 @@ static int hpb_dmae_alloc_chan_resources(struct dma_chan *chan)
+ 			ret = -EINVAL;
+ 			goto efindslave;
+ 		}
+-		param->config = cfg;
+ 
+ 		if (test_and_set_bit(param->slave_id, hpb_dmae_slave_used)) {
+ 			ret = -EBUSY;
+ 			goto etestused;
+ 		}
+ 
++		param->config = cfg;
++
+ 		/* detect slave device data */
+ 		for (i = 0; i < pdata->channel_num; i++) {
+ 			if (chan_pdata->s_id == param->slave_id) {
+@@ -543,10 +545,10 @@ etestused:
+ efindslave:
+ err_no_irq:
+ 	pm_runtime_put(hpb_chan->dev);
++	chan->private = NULL;
+ 	return ret;
+ }
+ 
+-
+ /*
+  * hpb_dma_free_chan_resources - Free all resources of the channel.
+  */
+@@ -557,7 +559,12 @@ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ 	LIST_HEAD(list);
+ 	int descs = hpb_chan->descs_allocated;
+ 
++	/* Protect against ISR */
++	spin_lock_irq(&hpb_chan->desc_lock);
+ 	dmae_halt(hpb_chan);
++	spin_unlock_irq(&hpb_chan->desc_lock);
++
++	/* Now no new interrupts will occur */
+ 
+ 	hpb_chan->plane_cnt = PLANE_ON;
+ 	hpb_chan->desc_flag = PLANE_ON;
+@@ -572,6 +579,7 @@ static void hpb_dmae_free_chan_resources(struct dma_chan *chan)
+ 		/* The caller is holding dma_list_mutex */
+ 		struct hpb_dmae_slave *param = chan->private;
+ 		clear_bit(param->slave_id, hpb_dmae_slave_used);
++		chan->private = NULL;
+ 	}
+ 
+ 	spin_lock_irq(&hpb_chan->desc_lock);
+@@ -753,8 +761,6 @@ static struct dma_async_tx_descriptor *hpb_dmae_prep_memcpy(
+ 	if (!chan || !len)
+ 		return NULL;
+ 
+-	chan->private = NULL;
+-
+ 	hpb_chan = to_hpb_chan(chan);
+ 
+ 	sg_init_table(&sg, 1);
+@@ -872,7 +878,6 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 					"Completing cookie %d, expected %d\n",
+ 					desc->cookie,
+ 					hpb_chan->common.completed_cookie + 1);
+-
+ 			hpb_chan->common.completed_cookie = desc->cookie;
+ 		}
+ 
+@@ -881,8 +886,7 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 			desc->mark = DESC_WAITING;
+ 			callback = tx->callback;
+ 			param = tx->callback_param;
+-			dev_dbg(hpb_chan->dev,
+-				"descriptor #%d@%p on %d callback\n",
++			dev_dbg(hpb_chan->dev, "descriptor #%d@%p on %d callback\n",
+ 				tx->cookie, tx, hpb_chan->id);
+ 			BUG_ON(desc->chunks != 1);
+ 			break;
+@@ -918,6 +922,13 @@ static dma_async_tx_callback __ld_cleanup(struct hpb_dmae_chan *hpb_chan,
+ 		}
+ 	}
+ 
++	if (all && !callback)
++		/*
++		 * Terminating and the loop completed normally: forgive
++		 * uncompleted cookies
++		 */
++		hpb_chan->common.completed_cookie = hpb_chan->common.cookie;
++
+ 	spin_unlock_irqrestore(&hpb_chan->desc_lock, flags);
+ 
+ 	if (callback)
+@@ -935,16 +946,15 @@ static void hpb_dmae_chan_ld_cleanup(struct hpb_dmae_chan *hpb_chan, bool all)
+ {
+ 	while (__ld_cleanup(hpb_chan, all))
+ 		;
+-
+-	if (all)
+-		/* Terminating - forgive uncompleted cookies */
+-		hpb_chan->common.completed_cookie = hpb_chan->common.cookie;
+ }
+ 
+ static void hpb_dmae_memcpy_issue_pending(struct dma_chan *chan)
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
++
++	spin_lock_irq(&hpb_chan->desc_lock);
+ 	hpb_chan_xfer_ld_queue(hpb_chan);
++	spin_unlock_irq(&hpb_chan->desc_lock);
+ }
+ 
+ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+@@ -996,6 +1006,7 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 	/* reference struct dma_device */
+ 	new_hpb_chan->common.device = &hpbdev->common;
+ 	dma_cookie_init(&new_hpb_chan->common);
++
+ 	new_hpb_chan->dev = hpbdev->common.dev;
+ 	new_hpb_chan->id = id;
+ 
+@@ -1011,7 +1022,6 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 	/* Add the channel to DMA device channel list */
+ 	list_add_tail(&new_hpb_chan->common.device_node,
+ 			&hpbdev->common.channels);
+-
+ 	hpbdev->common.chancnt++;
+ 
+ 	if (pdev->id >= 0)
+@@ -1048,7 +1058,7 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 	struct hpb_dmae_pdata *pdata = pdev->dev.platform_data;
+ 	int err, i;
+ 	struct hpb_dmae_device *hpbdev;
+-	struct resource *chan, *common, *reset, *mode, *irq_res;
++	struct resource *chan, *common, *reset, *mode, *errirq_res;
+ 
+ 	/* get platform data */
+ 	if (!pdata || !pdata->channel_num)
+@@ -1059,8 +1069,8 @@ static int __init hpb_dmae_probe(struct platform_device *pdev)
+ 	reset = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+ 	mode = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+ 
+-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+-	if (!chan || !irq_res)
++	errirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
++	if (!chan || !errirq_res)
+ 		return -ENODEV;
+ 
+ 	if (!request_mem_region(chan->start, resource_size(chan), pdev->name)) {
+-- 
+1.7.9.5
+

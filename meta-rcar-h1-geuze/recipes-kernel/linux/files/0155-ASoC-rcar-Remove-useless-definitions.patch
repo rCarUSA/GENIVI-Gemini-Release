@@ -1,0 +1,627 @@
+From 69f8596190f343599426b708894234c983f0e2cb Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 4 Mar 2013 11:34:31 +0000
+Subject: [PATCH 155/215] ASoC: rcar: Remove useless definitions
+
+Most of the bit fields are just repetitions for the different
+channels, etc.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ sound/soc/rcar/sru_pcm.c |    8 +-
+ sound/soc/rcar/sru_pcm.h |  529 +++-------------------------------------------
+ 2 files changed, 33 insertions(+), 504 deletions(-)
+
+diff --git a/sound/soc/rcar/sru_pcm.c b/sound/soc/rcar/sru_pcm.c
+index 4671e25..9c04fe8 100644
+--- a/sound/soc/rcar/sru_pcm.c
++++ b/sound/soc/rcar/sru_pcm.c
+@@ -217,7 +217,7 @@ static int sru_init(void)
+ 	sru_ssi_init();
+ 
+ 	/* SSI_MODE0 setting (SSI independant) */
+-	sru_or_writel((SSI_MODE0_IND0 | SSI_MODE0_IND1),
++	sru_or_writel((SSI_MODE0_IND(0) | SSI_MODE0_IND(1)),
+ 			&audioinfo.srureg->ssi_mode0);
+ 
+ 	/* SSI_MODE1 setting */
+@@ -762,11 +762,11 @@ static int sru_probe(struct platform_device *pdev)
+ 
+ 	audioinfo.srureg = (struct sru_regs *)mem;
+ 
+-	/* CODEC#1 setting */
++	/* CODEC#1 setting (SSI0,SSI1) */
+ 	audioinfo.ssireg[PLAY] =
+-		(struct ssi_regs *)(mem + SSI0_BASE);
++		(struct ssi_regs *)(mem + SSI_BASE(0));
+ 	audioinfo.ssireg[CAPT] =
+-		(struct ssi_regs *)(mem + SSI1_BASE);
++		(struct ssi_regs *)(mem + SSI_BASE(1));
+ 
+ 	ret = snd_soc_register_platform(&pdev->dev, &sru_soc_platform);
+ 	if (ret < 0) {
+diff --git a/sound/soc/rcar/sru_pcm.h b/sound/soc/rcar/sru_pcm.h
+index dd9268f..501f6fd 100644
+--- a/sound/soc/rcar/sru_pcm.h
++++ b/sound/soc/rcar/sru_pcm.h
+@@ -58,26 +58,10 @@
+ #define	RC_ADG_BASE	IOMEM(RC_BASE_ADG)		/* 0xfffe0000 */
+ 
+ /* HPBIF data register */
+-#define	HPBIF0_DATA	0xffda0000
+-#define	HPBIF1_DATA	0xffda1000
+-#define	HPBIF2_DATA	0xffda2000
+-#define	HPBIF3_DATA	0xffda3000
+-#define	HPBIF4_DATA	0xffda4000
+-#define	HPBIF5_DATA	0xffda5000
+-#define	HPBIF6_DATA	0xffda6000
+-#define	HPBIF7_DATA	0xffda7000
+-#define	HPBIF8_DATA	0xffda8000
++#define	HPBIF_DATA(x)		(0xffda0000 + ((x) * 0x1000))
+ 
+ /* SRU register offset */
+-#define	SRC0_BASE		0x00000200
+-#define	SRC1_BASE		0x00000240
+-#define	SRC2_BASE		0x00000280
+-#define	SRC3_BASE		0x000002c0
+-#define	SRC4_BASE		0x00000300
+-#define	SRC5_BASE		0x00000340
+-#define	SRC6_BASE		0x00000380
+-#define	SRC7_BASE		0x000003c0
+-#define	SRC8_BASE		0x00000400
++#define	SRC_BASE(x)		(0x00000200 + ((x) * 0x40))
+ #define	CTU00_BASE		0x00000500
+ #define	CTU01_BASE		0x00000600
+ #define	CTU02_BASE		0x00000700
+@@ -90,228 +74,40 @@
+ #define	MIX1_BASE		0x00000d40
+ #define	DVC0_BASE		0x00000e00
+ #define	DVC1_BASE		0x00000f00
+-#define	SSI0_BASE		0x00001000
+-#define	SSI1_BASE		0x00001040
+-#define	SSI2_BASE		0x00001080
+-#define	SSI3_BASE		0x000010c0
+-#define	SSI4_BASE		0x00001100
+-#define	SSI5_BASE		0x00001140
+-#define	SSI6_BASE		0x00001180
+-#define	SSI7_BASE		0x000011c0
+-#define	SSI8_BASE		0x00001200
++#define	SSI_BASE(x)		(0x00001000 + ((x) * 0x40))
+ 
+ /* SRC_ROUTE_SELECT bit */
+-#define	RTSEL_SRC0_PLAY	(1<<0)	/* HPBIF0 -> SRC0 -> SSI0 */
+-#define	RTSEL_SRC0_CAPT	(2<<0)	/* SSI0 -> SRC0 -> HPBIF0 */
+-#define	RTSEL_SRC1_PLAY	(1<<4)	/* HPBIF1 -> SRC1 -> SSI1 */
+-#define	RTSEL_SRC1_CAPT	(2<<4)	/* SSI1 -> SRC1 -> HPBIF1 */
+-#define	RTSEL_SRC2_PLAY	(1<<8)	/* HPBIF2 -> SRC2 -> SSI2 */
+-#define	RTSEL_SRC2_CAPT	(2<<8)	/* SSI2 -> SRC2 -> HPBIF2 */
+-#define	RTSEL_SRC3_PLAY	(1<<12)	/* HPBIF3 -> SRC3 -> SSI3 */
+-#define	RTSEL_SRC3_CAPT	(2<<12)	/* SSI3 -> SRC3 -> HPBIF3 */
+-#define	RTSEL_SRC4_PLAY	(1<<16)	/* HPBIF4 -> SRC4 -> SSI4 */
+-#define	RTSEL_SRC4_CAPT	(2<<16)	/* SSI4 -> SRC4 -> HPBIF4 */
+-#define	RTSEL_SRC5_PLAY	(1<<20)	/* HPBIF5 -> SRC5 -> SSI5 */
+-#define	RTSEL_SRC5_CAPT	(2<<20)	/* SSI5 -> SRC5 -> HPBIF5 */
+-#define	RTSEL_SRC6_PLAY	(1<<24)	/* HPBIF6 -> SRC6 -> SSI6 */
+-#define	RTSEL_SRC6_CAPT	(2<<24)	/* SSI6 -> SRC6 -> HPBIF6 */
+-#define	RTSEL_SRC7_PLAY	(1<<28)	/* HPBIF7 -> SRC7 -> SSI7 */
+-#define	RTSEL_SRC7_CAPT	(2<<28)	/* SSI7 -> SRC7 -> HPBIF7 */
+-#define	RTSEL_SRC8_PLAY	(1<<30)	/* HPBIF8 -> SRC8 -> SSI8 */
+-#define	RTSEL_SRC8_CAPT	(2<<30)	/* SSI8 -> SRC8 -> HPBIF8 */
++#define	RTSEL_SRC_PLAY(src)	((1<<0) << (4*(src)))	/* HPBIFn -> SRCn -> SSIn */
++#define	RTSEL_SRC_CAPT(src)	((2<<0) << (4*(src)))	/* HPBIFn -> SRCn -> SSIn */
+ 
+ /* SRC_TIMING_SELECT0 */
+-#define	TMGSEL0_HPBIF0_ADG	(0<<0)
+-#define	TMGSEL0_HPBIF0_SSI0_WS	(1<<0)
+-#define	TMGSEL0_HPBIF0_SSI1_WS	(2<<0)
+-#define	TMGSEL0_HPBIF0_SSI2_WS	(3<<0)
+-#define	TMGSEL0_HPBIF0_SSI3_WS	(4<<0)
+-#define	TMGSEL0_HPBIF0_SSI4_WS	(5<<0)
+-#define	TMGSEL0_HPBIF0_SSI5_WS	(6<<0)
+-#define	TMGSEL0_HPBIF0_SSI6_WS	(7<<0)
+-#define	TMGSEL0_HPBIF0_SSI7_WS	(8<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP0	(9<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP1	(10<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP2	(11<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP3	(12<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP4	(13<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP5	(14<<0)
+-#define	TMGSEL0_HPBIF0_MIMLCP6	(15<<0)
+-#define	TMGSEL0_HPBIF1_ADG	(0<<8)
+-#define	TMGSEL0_HPBIF1_SSI0_WS	(1<<8)
+-#define	TMGSEL0_HPBIF1_SSI1_WS	(2<<8)
+-#define	TMGSEL0_HPBIF1_SSI2_WS	(3<<8)
+-#define	TMGSEL0_HPBIF1_SSI3_WS	(4<<8)
+-#define	TMGSEL0_HPBIF1_SSI4_WS	(5<<8)
+-#define	TMGSEL0_HPBIF1_SSI5_WS	(6<<8)
+-#define	TMGSEL0_HPBIF1_SSI6_WS	(7<<8)
+-#define	TMGSEL0_HPBIF1_SSI7_WS	(8<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP0	(9<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP1	(10<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP2	(11<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP3	(12<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP4	(13<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP5	(14<<8)
+-#define	TMGSEL0_HPBIF1_MIMLCP6	(15<<8)
+-#define	TMGSEL0_HPBIF2_ADG	(0<<16)
+-#define	TMGSEL0_HPBIF2_SSI0_WS	(1<<16)
+-#define	TMGSEL0_HPBIF2_SSI1_WS	(2<<16)
+-#define	TMGSEL0_HPBIF2_SSI2_WS	(3<<16)
+-#define	TMGSEL0_HPBIF2_SSI3_WS	(4<<16)
+-#define	TMGSEL0_HPBIF2_SSI4_WS	(5<<16)
+-#define	TMGSEL0_HPBIF2_SSI5_WS	(6<<16)
+-#define	TMGSEL0_HPBIF2_SSI6_WS	(7<<16)
+-#define	TMGSEL0_HPBIF2_SSI7_WS	(8<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP0	(9<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP1	(10<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP2	(11<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP3	(12<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP4	(13<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP5	(14<<16)
+-#define	TMGSEL0_HPBIF2_MIMLCP6	(15<<16)
+-#define	TMGSEL0_HPBIF3_ADG	(0<<24)
+-#define	TMGSEL0_HPBIF3_SSI0_WS	(1<<24)
+-#define	TMGSEL0_HPBIF3_SSI1_WS	(2<<24)
+-#define	TMGSEL0_HPBIF3_SSI2_WS	(3<<24)
+-#define	TMGSEL0_HPBIF3_SSI3_WS	(4<<24)
+-#define	TMGSEL0_HPBIF3_SSI4_WS	(5<<24)
+-#define	TMGSEL0_HPBIF3_SSI5_WS	(6<<24)
+-#define	TMGSEL0_HPBIF3_SSI6_WS	(7<<24)
+-#define	TMGSEL0_HPBIF3_SSI7_WS	(8<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP0	(9<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP1	(10<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP2	(11<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP3	(12<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP4	(13<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP5	(14<<24)
+-#define	TMGSEL0_HPBIF3_MIMLCP6	(15<<24)
+-
+-/* SRC_TIMING_SELECT1 */
+-#define	TMGSEL1_HPBIF4_ADG	(0<<0)
+-#define	TMGSEL1_HPBIF4_SSI0_WS	(1<<0)
+-#define	TMGSEL1_HPBIF4_SSI1_WS	(2<<0)
+-#define	TMGSEL1_HPBIF4_SSI2_WS	(3<<0)
+-#define	TMGSEL1_HPBIF4_SSI3_WS	(4<<0)
+-#define	TMGSEL1_HPBIF4_SSI4_WS	(5<<0)
+-#define	TMGSEL1_HPBIF4_SSI5_WS	(6<<0)
+-#define	TMGSEL1_HPBIF4_SSI6_WS	(7<<0)
+-#define	TMGSEL1_HPBIF4_SSI7_WS	(8<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP0	(9<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP1	(10<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP2	(11<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP3	(12<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP4	(13<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP5	(14<<0)
+-#define	TMGSEL1_HPBIF4_MIMLCP6	(15<<0)
+-#define	TMGSEL1_HPBIF5_ADG	(0<<8)
+-#define	TMGSEL1_HPBIF5_SSI0_WS	(1<<8)
+-#define	TMGSEL1_HPBIF5_SSI1_WS	(2<<8)
+-#define	TMGSEL1_HPBIF5_SSI2_WS	(3<<8)
+-#define	TMGSEL1_HPBIF5_SSI3_WS	(4<<8)
+-#define	TMGSEL1_HPBIF5_SSI4_WS	(5<<8)
+-#define	TMGSEL1_HPBIF5_SSI5_WS	(6<<8)
+-#define	TMGSEL1_HPBIF5_SSI6_WS	(7<<8)
+-#define	TMGSEL1_HPBIF5_SSI7_WS	(8<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP0	(9<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP1	(10<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP2	(11<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP3	(12<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP4	(13<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP5	(14<<8)
+-#define	TMGSEL1_HPBIF5_MIMLCP6	(15<<8)
+-#define	TMGSEL1_HPBIF6_ADG	(0<<16)
+-#define	TMGSEL1_HPBIF6_SSI0_WS	(1<<16)
+-#define	TMGSEL1_HPBIF6_SSI1_WS	(2<<16)
+-#define	TMGSEL1_HPBIF6_SSI2_WS	(3<<16)
+-#define	TMGSEL1_HPBIF6_SSI3_WS	(4<<16)
+-#define	TMGSEL1_HPBIF6_SSI4_WS	(5<<16)
+-#define	TMGSEL1_HPBIF6_SSI5_WS	(6<<16)
+-#define	TMGSEL1_HPBIF6_SSI6_WS	(7<<16)
+-#define	TMGSEL1_HPBIF6_SSI7_WS	(8<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP0	(9<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP1	(10<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP2	(11<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP3	(12<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP4	(13<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP5	(14<<16)
+-#define	TMGSEL1_HPBIF6_MIMLCP6	(15<<16)
+-#define	TMGSEL1_HPBIF7_ADG	(0<<24)
+-#define	TMGSEL1_HPBIF7_SSI0_WS	(1<<24)
+-#define	TMGSEL1_HPBIF7_SSI1_WS	(2<<24)
+-#define	TMGSEL1_HPBIF7_SSI2_WS	(3<<24)
+-#define	TMGSEL1_HPBIF7_SSI3_WS	(4<<24)
+-#define	TMGSEL1_HPBIF7_SSI4_WS	(5<<24)
+-#define	TMGSEL1_HPBIF7_SSI5_WS	(6<<24)
+-#define	TMGSEL1_HPBIF7_SSI6_WS	(7<<24)
+-#define	TMGSEL1_HPBIF7_SSI7_WS	(8<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP0	(9<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP1	(10<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP2	(11<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP3	(12<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP4	(13<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP5	(14<<24)
+-#define	TMGSEL1_HPBIF7_MIMLCP6	(15<<24)
+-
+-/* SRC_TIMING_SELECT2 */
+-#define	TMGSEL2_HPBIF8_ADG	(0<<0)
+-#define	TMGSEL2_HPBIF8_SSI0_WS	(1<<0)
+-#define	TMGSEL2_HPBIF8_SSI1_WS	(2<<0)
+-#define	TMGSEL2_HPBIF8_SSI2_WS	(3<<0)
+-#define	TMGSEL2_HPBIF8_SSI3_WS	(4<<0)
+-#define	TMGSEL2_HPBIF8_SSI4_WS	(5<<0)
+-#define	TMGSEL2_HPBIF8_SSI5_WS	(6<<0)
+-#define	TMGSEL2_HPBIF8_SSI6_WS	(7<<0)
+-#define	TMGSEL2_HPBIF8_SSI7_WS	(8<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP0	(9<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP1	(10<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP2	(11<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP3	(12<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP4	(13<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP5	(14<<0)
+-#define	TMGSEL2_HPBIF8_MIMLCP6	(15<<0)
++#define	TMGSEL_HPBIF_ADG(hpbif)	0
++
++static inline u32 TMGSEL_HPBIF_SSI_WS(int hpbif, int ssi_chan)
++{
++	u32 tmg = 1 + ssi_chan;
++	int shift = 8 * (hpbif % 4);
++	return tmg << shift;
++}
++
++static inline u32 TMGSEL_HPBIF_MIMLCP_WS(int hpbif, int mimlcp)
++{
++	u32 tmg = 9 + mimlcp;
++	int shift = 8 * (hpbif % 4);
++	return tmg << shift;
++}
+ 
+ /* SRC_TIMING_SELECT3 */
+-#define	TMGSEL3_SRCOUT0_SSI3_WS	(0<<0)
+-#define	TMGSEL3_SRCOUT0_SSI4_WS	(1<<0)
+-#define	TMGSEL3_SRCOUT0_MIMLCP3	(2<<0)
+-#define	TMGSEL3_SRCOUT0_MIMLCP4	(3<<0)
+-#define	TMGSEL3_SRCOUT1_SSI3_WS	(0<<4)
+-#define	TMGSEL3_SRCOUT1_SSI4_WS	(1<<4)
+-#define	TMGSEL3_SRCOUT1_MIMLCP3	(2<<4)
+-#define	TMGSEL3_SRCOUT1_MIMLCP4	(3<<4)
+-#define	TMGSEL3_SRCOUT2_SSI3_WS	(0<<8)
+-#define	TMGSEL3_SRCOUT2_SSI4_WS	(1<<8)
+-#define	TMGSEL3_SRCOUT2_MIMLCP3	(2<<8)
+-#define	TMGSEL3_SRCOUT2_MIMLCP4	(3<<8)
+-#define	TMGSEL3_SRCOUT3_SSI3_WS	(0<<12)
+-#define	TMGSEL3_SRCOUT3_SSI4_WS	(1<<12)
+-#define	TMGSEL3_SRCOUT3_MIMLCP3	(2<<12)
+-#define	TMGSEL3_SRCOUT3_MIMLCP4	(3<<12)
+-#define	TMGSEL3_SRCOUT4_SSI3_WS	(0<<16)
+-#define	TMGSEL3_SRCOUT4_SSI4_WS	(1<<16)
+-#define	TMGSEL3_SRCOUT4_MIMLCP3	(2<<16)
+-#define	TMGSEL3_SRCOUT4_MIMLCP4	(3<<16)
++#define	TMGSEL3_SRCOUT_SSI3_WS(srcout)	(0 << 4*(srcout))
++#define	TMGSEL3_SRCOUT_SSI4_WS(srcout)	(1 << 4*(srcout))
++#define	TMGSEL3_SRCOUT_MIMLCP3(srcout)	(2 << 4*(srcout))
++#define	TMGSEL3_SRCOUT_MIMLCP4(srcout)	(3 << 4*(srcout))
+ 
+ /* HPBIF_MODE */
+ #define	HPBIF_MD_ACCESS_PIO	(0<<0)
+ #define	HPBIF_MD_ACCESS_DMA	(1<<0)
+ #define	HPBIF_MD_WORDSWAP	(1<<8)
+-#define	HPBIF_MD_SFTNUM_BIT0	(0<<16)
+-#define	HPBIF_MD_SFTNUM_BIT1	(1<<16)
+-#define	HPBIF_MD_SFTNUM_BIT2	(2<<16)
+-#define	HPBIF_MD_SFTNUM_BIT3	(3<<16)
+-#define	HPBIF_MD_SFTNUM_BIT4	(4<<16)
+-#define	HPBIF_MD_SFTNUM_BIT5	(5<<16)
+-#define	HPBIF_MD_SFTNUM_BIT6	(6<<16)
+-#define	HPBIF_MD_SFTNUM_BIT7	(7<<16)
+-#define	HPBIF_MD_SFTNUM_BIT8	(8<<16)
+-#define	HPBIF_MD_SFTNUM_BIT9	(9<<16)
+-#define	HPBIF_MD_SFTNUM_BIT10	(10<<16)
+-#define	HPBIF_MD_SFTNUM_BIT11	(11<<16)
+-#define	HPBIF_MD_SFTNUM_BIT12	(12<<16)
+-#define	HPBIF_MD_SFTNUM_BIT13	(13<<16)
+-#define	HPBIF_MD_SFTNUM_BIT14	(14<<16)
+-#define	HPBIF_MD_SFTNUM_BIT15	(15<<16)
++#define	HPBIF_MD_SFTNUM_BIT(x)	((x)<<16)
+ #define	HPBIF_MD_SFTDIR_LEFT	(0<<20)
+ #define	HPBIF_MD_SFTDIR_RIGHT	(1<<20)
+ 
+@@ -334,24 +130,8 @@
+ #define	SRCRT_CTRL_START41	(1<<17)
+ 
+ /* SSI_MODE0 bit */
+-#define	SSI_MODE0_IND0	(1<<0)
+-#define	SSI_MODE0_IND1	(1<<1)
+-#define	SSI_MODE0_IND2	(1<<2)
+-#define	SSI_MODE0_IND3	(1<<3)
+-#define	SSI_MODE0_IND4	(1<<4)
+-#define	SSI_MODE0_IND5	(1<<5)
+-#define	SSI_MODE0_IND6	(1<<6)
+-#define	SSI_MODE0_IND7	(1<<7)
+-#define	SSI_MODE0_IND8	(1<<8)
+-#define	SSI_MODE0_SWAP0	(1<<16)
+-#define	SSI_MODE0_SWAP1	(1<<17)
+-#define	SSI_MODE0_SWAP2	(1<<18)
+-#define	SSI_MODE0_SWAP3	(1<<19)
+-#define	SSI_MODE0_SWAP4	(1<<20)
+-#define	SSI_MODE0_SWAP5	(1<<21)
+-#define	SSI_MODE0_SWAP6	(1<<22)
+-#define	SSI_MODE0_SWAP7	(1<<23)
+-#define	SSI_MODE0_SWAP8	(1<<24)
++#define	SSI_MODE0_IND(chan)	(1<<(chan))
++#define	SSI_MODE0_SWAP(chan)	(1<<((chan)+16))
+ 
+ /* SSI_MODE1 bit */
+ #define	SSI_MODE1_SSI1_IND	(0<<0)	/* SSI1 independent        */
+@@ -523,37 +303,7 @@
+ #define	SSIWSR_MODE_MN	(1<<0)
+ #define	SSIWSR_MONO	(1<<1)
+ #define	SSIWSR_CONT	(1<<8)
+-#define	SSIWSR_WIDTH_1	(1<<16)
+-#define	SSIWSR_WIDTH_2	(2<<16)
+-#define	SSIWSR_WIDTH_3	(3<<16)
+-#define	SSIWSR_WIDTH_4	(4<<16)
+-#define	SSIWSR_WIDTH_5	(5<<16)
+-#define	SSIWSR_WIDTH_6	(6<<16)
+-#define	SSIWSR_WIDTH_7	(7<<16)
+-#define	SSIWSR_WIDTH_8	(8<<16)
+-#define	SSIWSR_WIDTH_9	(9<<16)
+-#define	SSIWSR_WIDTH_10	(10<<16)
+-#define	SSIWSR_WIDTH_11	(11<<16)
+-#define	SSIWSR_WIDTH_12	(12<<16)
+-#define	SSIWSR_WIDTH_13	(13<<16)
+-#define	SSIWSR_WIDTH_14	(14<<16)
+-#define	SSIWSR_WIDTH_15	(15<<16)
+-#define	SSIWSR_WIDTH_16	(16<<16)
+-#define	SSIWSR_WIDTH_17	(17<<16)
+-#define	SSIWSR_WIDTH_18	(18<<16)
+-#define	SSIWSR_WIDTH_19	(19<<16)
+-#define	SSIWSR_WIDTH_20	(20<<16)
+-#define	SSIWSR_WIDTH_21	(21<<16)
+-#define	SSIWSR_WIDTH_22	(22<<16)
+-#define	SSIWSR_WIDTH_23	(23<<16)
+-#define	SSIWSR_WIDTH_24	(24<<16)
+-#define	SSIWSR_WIDTH_25	(25<<16)
+-#define	SSIWSR_WIDTH_26	(26<<16)
+-#define	SSIWSR_WIDTH_27	(27<<16)
+-#define	SSIWSR_WIDTH_28	(28<<16)
+-#define	SSIWSR_WIDTH_29	(29<<16)
+-#define	SSIWSR_WIDTH_30	(30<<16)
+-#define	SSIWSR_WIDTH_31	(31<<16)
++#define	SSIWSR_WIDTH(width)	((width)<<16)
+ 
+ /*
+  * SSIWS setting
+@@ -576,229 +326,8 @@
+ #define	ADG_BRRB		0x0004	/* BRGB baud rate set register   */
+ #define	ADG_SSICKR		0x0008	/* clock select register         */
+ #define	ADG_AUDIO_CLK_SEL0	0x000c	/* AUDIO CLOCK select 0 register */
+-#define	ADG_AUDIO_CLK_SEL1	0x0010	/* AUDIO CLOCK select 1 register */
+ #define	ADG_AUDIO_CLK_SEL3	0x0018	/* AUDIO CLOCK select 3 register */
+-#define	ADG_AUDIO_CLK_SEL4	0x001c	/* AUDIO CLOCK select 4 register */
+-#define	ADG_AUDIO_CLK_SEL5	0x0020	/* AUDIO CLOCK select 5 register */
+-
+-/* ADG BRRA bit */
+-#define	ADG_BRRA_CKS_ACLKA		(0<<8)
+-#define	ADG_BRRA_CKS_ACLKA_DIV4		(1<<8)
+-#define	ADG_BRRA_CKS_ACLKA_DIV16	(2<<8)
+-#define	ADG_BRRA_CKS_ACLKA_DIV64	(3<<8)
+-
+-/* ADG BRRB bit */
+-#define	ADG_BRRB_CKS_ACLKB		(0<<8)
+-#define	ADG_BRRB_CKS_ACLKB_DIV4		(1<<8)
+-#define	ADG_BRRB_CKS_ACLKB_DIV16	(2<<8)
+-#define	ADG_BRRB_CKS_ACLKB_DIV64	(3<<8)
+-
+-/* ADG SSICKR bit */
+-#define	ADG_SSICK_CLKOUT_BRGA		(0<<31)
+-#define	ADG_SSICK_CLKOUT_BRGB		(1<<31)
+-#define	ADG_SSICK_BRGA_AUDIO_CLKA	(0<<20)
+-#define	ADG_SSICK_BRGA_AUDIO_CLKB	(1<<20)
+-#define	ADG_SSICK_BRGA_AUDIO_CLKC	(4<<20)
+-#define	ADG_SSICK_BRGB_AUDIO_CLKA	(0<<16)
+-#define	ADG_SSICK_BRGB_AUDIO_CLKB	(1<<16)
+-#define	ADG_SSICK_BRGB_AUDIO_CLKC	(4<<16)
+-
+-/* ADG AUDIO_CLK_SEL0 bit */
+-#define	ADG_SEL0_SSI3_DIV1		(0<<30)
+-#define	ADG_SEL0_SSI3_DIV2		(1<<30)
+-#define	ADG_SEL0_SSI3_DIV4		(2<<30)
+-#define	ADG_SEL0_SSI3_ACLK_DIV		(0<<28)
+-#define	ADG_SEL0_SSI3_ACLK_BRGA		(1<<28)
+-#define	ADG_SEL0_SSI3_ACLK_BRGB		(2<<28)
+-#define	ADG_SEL0_SSI3_DIVCLK_FIX	(0<<24)
+-#define	ADG_SEL0_SSI3_DIVCLK_CLKA	(1<<24)
+-#define	ADG_SEL0_SSI3_DIVCLK_CLKB	(2<<24)
+-#define	ADG_SEL0_SSI3_DIVCLK_CLKC	(3<<24)
+-#define	ADG_SEL0_SSI3_DIVCLK_MLBCLK	(4<<24)
+-#define	ADG_SEL0_SSI2_DIV1		(0<<22)
+-#define	ADG_SEL0_SSI2_DIV2		(1<<22)
+-#define	ADG_SEL0_SSI2_DIV4		(2<<22)
+-#define	ADG_SEL0_SSI2_ACLK_DIV		(0<<20)
+-#define	ADG_SEL0_SSI2_ACLK_BRGA		(1<<20)
+-#define	ADG_SEL0_SSI2_ACLK_BRGB		(2<<20)
+-#define	ADG_SEL0_SSI2_DIVCLK_FIX	(0<<16)
+-#define	ADG_SEL0_SSI2_DIVCLK_CLKA	(1<<16)
+-#define	ADG_SEL0_SSI2_DIVCLK_CLKB	(2<<16)
+-#define	ADG_SEL0_SSI2_DIVCLK_CLKC	(3<<16)
+-#define	ADG_SEL0_SSI2_DIVCLK_MLBCLK	(4<<16)
+-#define	ADG_SEL0_SSI1_DIV1		(0<<14)
+-#define	ADG_SEL0_SSI1_DIV2		(1<<14)
+-#define	ADG_SEL0_SSI1_DIV4		(2<<14)
+-#define	ADG_SEL0_SSI1_ACLK_DIV		(0<<12)
+-#define	ADG_SEL0_SSI1_ACLK_BRGA		(1<<12)
+-#define	ADG_SEL0_SSI1_ACLK_BRGB		(2<<12)
+-#define	ADG_SEL0_SSI1_DIVCLK_FIX	(0<<8)
+-#define	ADG_SEL0_SSI1_DIVCLK_CLKA	(1<<8)
+-#define	ADG_SEL0_SSI1_DIVCLK_CLKB	(2<<8)
+-#define	ADG_SEL0_SSI1_DIVCLK_CLKC	(3<<8)
+-#define	ADG_SEL0_SSI1_DIVCLK_MLBCLK	(4<<8)
+-#define	ADG_SEL0_SSI0_DIV1		(0<<6)
+-#define	ADG_SEL0_SSI0_DIV2		(1<<6)
+-#define	ADG_SEL0_SSI0_DIV4		(2<<6)
+-#define	ADG_SEL0_SSI0_ACLK_DIV		(0<<4)
+-#define	ADG_SEL0_SSI0_ACLK_BRGA		(1<<4)
+-#define	ADG_SEL0_SSI0_ACLK_BRGB		(2<<4)
+-#define	ADG_SEL0_SSI0_DIVCLK_FIX	(0<<0)
+-#define	ADG_SEL0_SSI0_DIVCLK_CLKA	(1<<0)
+-#define	ADG_SEL0_SSI0_DIVCLK_CLKB	(2<<0)
+-#define	ADG_SEL0_SSI0_DIVCLK_CLKC	(3<<0)
+-#define	ADG_SEL0_SSI0_DIVCLK_MLBCLK	(4<<0)
+-
+-/* ADG AUDIO_CLK_SEL1 bit */
+-#define	ADG_SEL1_SSI7_DIV1		(0<<30)
+-#define	ADG_SEL1_SSI7_DIV2		(1<<30)
+-#define	ADG_SEL1_SSI7_DIV4		(2<<30)
+-#define	ADG_SEL1_SSI7_ACLK_DIV		(0<<28)
+-#define	ADG_SEL1_SSI7_ACLK_BRGA		(1<<28)
+-#define	ADG_SEL1_SSI7_ACLK_BRGB		(2<<28)
+-#define	ADG_SEL1_SSI7_DIVCLK_FIX	(0<<24)
+-#define	ADG_SEL1_SSI7_DIVCLK_CLKA	(1<<24)
+-#define	ADG_SEL1_SSI7_DIVCLK_CLKB	(2<<24)
+-#define	ADG_SEL1_SSI7_DIVCLK_CLKC	(3<<24)
+-#define	ADG_SEL1_SSI7_DIVCLK_MLBCLK	(4<<24)
+-#define	ADG_SEL1_SSI6_DIV1		(0<<22)
+-#define	ADG_SEL1_SSI6_DIV2		(1<<22)
+-#define	ADG_SEL1_SSI6_DIV4		(2<<22)
+-#define	ADG_SEL1_SSI6_ACLK_DIV		(0<<20)
+-#define	ADG_SEL1_SSI6_ACLK_BRGA		(1<<20)
+-#define	ADG_SEL1_SSI6_ACLK_BRGB		(2<<20)
+-#define	ADG_SEL1_SSI6_DIVCLK_FIX	(0<<16)
+-#define	ADG_SEL1_SSI6_DIVCLK_CLKA	(1<<16)
+-#define	ADG_SEL1_SSI6_DIVCLK_CLKB	(2<<16)
+-#define	ADG_SEL1_SSI6_DIVCLK_CLKC	(3<<16)
+-#define	ADG_SEL1_SSI6_DIVCLK_MLBCLK	(4<<16)
+-#define	ADG_SEL1_SSI5_DIV1		(0<<14)
+-#define	ADG_SEL1_SSI5_DIV2		(1<<14)
+-#define	ADG_SEL1_SSI5_DIV4		(2<<14)
+-#define	ADG_SEL1_SSI5_ACLK_DIV		(0<<12)
+-#define	ADG_SEL1_SSI5_ACLK_BRGA		(1<<12)
+-#define	ADG_SEL1_SSI5_ACLK_BRGB		(2<<12)
+-#define	ADG_SEL1_SSI5_DIVCLK_FIX	(0<<8)
+-#define	ADG_SEL1_SSI5_DIVCLK_CLKA	(1<<8)
+-#define	ADG_SEL1_SSI5_DIVCLK_CLKB	(2<<8)
+-#define	ADG_SEL1_SSI5_DIVCLK_CLKC	(3<<8)
+-#define	ADG_SEL1_SSI5_DIVCLK_MLBCLK	(4<<8)
+-#define	ADG_SEL1_SSI4_DIV1		(0<<6)
+-#define	ADG_SEL1_SSI4_DIV2		(1<<6)
+-#define	ADG_SEL1_SSI4_DIV4		(2<<6)
+-#define	ADG_SEL1_SSI4_ACLK_DIV		(0<<4)
+-#define	ADG_SEL1_SSI4_ACLK_BRGA		(1<<4)
+-#define	ADG_SEL1_SSI4_ACLK_BRGB		(2<<4)
+-#define	ADG_SEL1_SSI4_DIVCLK_FIX	(0<<0)
+-#define	ADG_SEL1_SSI4_DIVCLK_CLKA	(1<<0)
+-#define	ADG_SEL1_SSI4_DIVCLK_CLKB	(2<<0)
+-#define	ADG_SEL1_SSI4_DIVCLK_CLKC	(3<<0)
+-#define	ADG_SEL1_SSI4_DIVCLK_MLBCLK	(4<<0)
+-
+-/* ADG AUDIO_CLK_SEL3 bit */
+-#define	ADG_SEL3_HPBIF3_DIV128		(0<<28)
+-#define	ADG_SEL3_HPBIF3_DIV256		(1<<28)
+-#define	ADG_SEL3_HPBIF3_DIV512		(2<<28)
+-#define	ADG_SEL3_HPBIF3_DIV1024		(3<<28)
+-#define	ADG_SEL3_HPBIF3_DIV2048		(4<<28)
+-#define	ADG_SEL3_HPBIF3_CLK_CLKA	(0<<24)
+-#define	ADG_SEL3_HPBIF3_CLK_CLKB	(1<<24)
+-#define	ADG_SEL3_HPBIF3_CLK_CLKC	(2<<24)
+-#define	ADG_SEL3_HPBIF3_CLK_MLBCLK	(3<<24)
+-#define	ADG_SEL3_HPBIF3_CLK_BRGA	(4<<24)
+-#define	ADG_SEL3_HPBIF3_CLK_BRGB	(5<<24)
+-#define	ADG_SEL3_HPBIF2_DIV128		(0<<20)
+-#define	ADG_SEL3_HPBIF2_DIV256		(1<<20)
+-#define	ADG_SEL3_HPBIF2_DIV512		(2<<20)
+-#define	ADG_SEL3_HPBIF2_DIV1024		(3<<20)
+-#define	ADG_SEL3_HPBIF2_DIV2048		(4<<20)
+-#define	ADG_SEL3_HPBIF2_CLK_CLKA	(0<<16)
+-#define	ADG_SEL3_HPBIF2_CLK_CLKB	(1<<16)
+-#define	ADG_SEL3_HPBIF2_CLK_CLKC	(2<<16)
+-#define	ADG_SEL3_HPBIF2_CLK_MLBCLK	(3<<16)
+-#define	ADG_SEL3_HPBIF2_CLK_BRGA	(4<<16)
+-#define	ADG_SEL3_HPBIF2_CLK_BRGB	(5<<16)
+-#define	ADG_SEL3_HPBIF1_DIV128		(0<<12)
+-#define	ADG_SEL3_HPBIF1_DIV256		(1<<12)
+-#define	ADG_SEL3_HPBIF1_DIV512		(2<<12)
+-#define	ADG_SEL3_HPBIF1_DIV1024		(3<<12)
+-#define	ADG_SEL3_HPBIF1_DIV2048		(4<<12)
+-#define	ADG_SEL3_HPBIF1_CLK_CLKA	(0<<8)
+-#define	ADG_SEL3_HPBIF1_CLK_CLKB	(1<<8)
+-#define	ADG_SEL3_HPBIF1_CLK_CLKC	(2<<8)
+-#define	ADG_SEL3_HPBIF1_CLK_MLBCLK	(3<<8)
+-#define	ADG_SEL3_HPBIF1_CLK_BRGA	(4<<8)
+-#define	ADG_SEL3_HPBIF1_CLK_BRGB	(5<<8)
+-#define	ADG_SEL3_HPBIF0_DIV128		(0<<4)
+-#define	ADG_SEL3_HPBIF0_DIV256		(1<<4)
+-#define	ADG_SEL3_HPBIF0_DIV512		(2<<4)
+-#define	ADG_SEL3_HPBIF0_DIV1024		(3<<4)
+-#define	ADG_SEL3_HPBIF0_DIV2048		(4<<4)
+-#define	ADG_SEL3_HPBIF0_CLK_CLKA	(0<<0)
+-#define	ADG_SEL3_HPBIF0_CLK_CLKB	(1<<0)
+-#define	ADG_SEL3_HPBIF0_CLK_CLKC	(2<<0)
+-#define	ADG_SEL3_HPBIF0_CLK_MLBCLK	(3<<0)
+-#define	ADG_SEL3_HPBIF0_CLK_BRGA	(4<<0)
+-#define	ADG_SEL3_HPBIF0_CLK_BRGB	(5<<0)
+-
+-/* ADG AUDIO_CLK_SEL4 bit */
+-#define	ADG_SEL4_HPBIF7_DIV128		(0<<28)
+-#define	ADG_SEL4_HPBIF7_DIV256		(1<<28)
+-#define	ADG_SEL4_HPBIF7_DIV512		(2<<28)
+-#define	ADG_SEL4_HPBIF7_DIV1024		(3<<28)
+-#define	ADG_SEL4_HPBIF7_DIV2048		(4<<28)
+-#define	ADG_SEL4_HPBIF7_CLK_CLKA	(0<<24)
+-#define	ADG_SEL4_HPBIF7_CLK_CLKB	(1<<24)
+-#define	ADG_SEL4_HPBIF7_CLK_CLKC	(2<<24)
+-#define	ADG_SEL4_HPBIF7_CLK_MLBCLK	(3<<24)
+-#define	ADG_SEL4_HPBIF7_CLK_BRGA	(4<<24)
+-#define	ADG_SEL4_HPBIF7_CLK_BRGB	(5<<24)
+-#define	ADG_SEL4_HPBIF6_DIV128		(0<<20)
+-#define	ADG_SEL4_HPBIF6_DIV256		(1<<20)
+-#define	ADG_SEL4_HPBIF6_DIV512		(2<<20)
+-#define	ADG_SEL4_HPBIF6_DIV1024		(3<<20)
+-#define	ADG_SEL4_HPBIF6_DIV2048		(4<<20)
+-#define	ADG_SEL4_HPBIF6_CLK_CLKA	(0<<16)
+-#define	ADG_SEL4_HPBIF6_CLK_CLKB	(1<<16)
+-#define	ADG_SEL4_HPBIF6_CLK_CLKC	(2<<16)
+-#define	ADG_SEL4_HPBIF6_CLK_MLBCLK	(3<<16)
+-#define	ADG_SEL4_HPBIF6_CLK_BRGA	(4<<16)
+-#define	ADG_SEL4_HPBIF6_CLK_BRGB	(5<<16)
+-#define	ADG_SEL4_HPBIF5_DIV128		(0<<12)
+-#define	ADG_SEL4_HPBIF5_DIV256		(1<<12)
+-#define	ADG_SEL4_HPBIF5_DIV512		(2<<12)
+-#define	ADG_SEL4_HPBIF5_DIV1024		(3<<12)
+-#define	ADG_SEL4_HPBIF5_DIV2048		(4<<12)
+-#define	ADG_SEL4_HPBIF5_CLK_CLKA	(0<<8)
+-#define	ADG_SEL4_HPBIF5_CLK_CLKB	(1<<8)
+-#define	ADG_SEL4_HPBIF5_CLK_CLKC	(2<<8)
+-#define	ADG_SEL4_HPBIF5_CLK_MLBCLK	(3<<8)
+-#define	ADG_SEL4_HPBIF5_CLK_BRGA	(4<<8)
+-#define	ADG_SEL4_HPBIF5_CLK_BRGB	(5<<8)
+-#define	ADG_SEL4_HPBIF4_DIV128		(0<<4)
+-#define	ADG_SEL4_HPBIF4_DIV256		(1<<4)
+-#define	ADG_SEL4_HPBIF4_DIV512		(2<<4)
+-#define	ADG_SEL4_HPBIF4_DIV1024		(3<<4)
+-#define	ADG_SEL4_HPBIF4_DIV2048		(4<<4)
+-#define	ADG_SEL4_HPBIF4_CLK_CLKA	(0<<0)
+-#define	ADG_SEL4_HPBIF4_CLK_CLKB	(1<<0)
+-#define	ADG_SEL4_HPBIF4_CLK_CLKC	(2<<0)
+-#define	ADG_SEL4_HPBIF4_CLK_MLBCLK	(3<<0)
+-#define	ADG_SEL4_HPBIF4_CLK_BRGA	(4<<0)
+-#define	ADG_SEL4_HPBIF4_CLK_BRGB	(5<<0)
+-
+-/* ADG AUDIO_CLK_SEL5 bit */
+-#define	ADG_SEL5_HPBIF8_DIV128		(0<<4)
+-#define	ADG_SEL5_HPBIF8_DIV256		(1<<4)
+-#define	ADG_SEL5_HPBIF8_DIV512		(2<<4)
+-#define	ADG_SEL5_HPBIF8_DIV1024		(3<<4)
+-#define	ADG_SEL5_HPBIF8_DIV2048		(4<<4)
+-#define	ADG_SEL5_HPBIF8_CLK_CLKA	(0<<0)
+-#define	ADG_SEL5_HPBIF8_CLK_CLKB	(1<<0)
+-#define	ADG_SEL5_HPBIF8_CLK_CLKC	(2<<0)
+-#define	ADG_SEL5_HPBIF8_CLK_MLBCLK	(3<<0)
+-#define	ADG_SEL5_HPBIF8_CLK_BRGA	(4<<0)
+-#define	ADG_SEL5_HPBIF8_CLK_BRGB	(5<<0)
++
+ 
+ /************************************************************************
+ 
+-- 
+1.7.9.5
+

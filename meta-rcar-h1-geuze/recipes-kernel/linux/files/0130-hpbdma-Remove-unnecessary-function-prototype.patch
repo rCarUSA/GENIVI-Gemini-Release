@@ -1,0 +1,25 @@
+From 636d9d6f7cbe342a0085318d0f0c893b15f726ab Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 18 Feb 2013 11:29:34 +0000
+Subject: [PATCH 130/215] hpbdma: Remove unnecessary function prototype
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 2c0cc9d..7abb7f8 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -314,7 +314,6 @@ static const struct hpb_dmae_slave_config *hpb_dmae_find_slave(
+ 
+ 	return NULL;
+ }
+-static void dmae_do_tasklet(unsigned long data);
+ 
+ /* Called under spin_lock_irq(&hpb_chan->desc_lock) */
+ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+-- 
+1.7.9.5
+

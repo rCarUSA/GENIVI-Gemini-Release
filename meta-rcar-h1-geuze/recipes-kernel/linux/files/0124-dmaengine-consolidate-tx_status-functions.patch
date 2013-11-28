@@ -1,0 +1,62 @@
+From 2875f97e94156775ae99ed79e698ff241142a63d Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 14:04:21 +0000
+Subject: [PATCH 124/215] dmaengine: consolidate tx_status functions
+
+Now that we have the completed cookie in the dma_chan structure, we
+can consolidate the tx_status functions by providing a function to set
+the txstate structure and returning the DMA status.  We also provide
+a separate helper to set the residue for cookies which are still in
+progress.
+
+Based on commit 96a2af41c78b1fbb1f567a3486bdc63f7b31c5fd
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |   17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 269e726..5e07837 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -252,13 +252,7 @@ static dma_cookie_t hpb_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
+ 
+ 	spin_lock_bh(&hpb_chan->desc_lock);
+ 
+-	cookie = hpb_chan->common.cookie;
+-	cookie++;
+-	if (cookie < 0)
+-		cookie = 1;
+-
+-	hpb_chan->common.cookie = cookie;
+-	tx->cookie = cookie;
++	cookie = dma_cookie_assign(tx);
+ 
+ 	/* Mark all chunks of this descriptor as submitted, move to the queue */
+ 	list_for_each_entry_safe(chunk, c, desc->node.prev, node) {
+@@ -962,20 +956,13 @@ static enum dma_status hpb_dmae_tx_status(struct dma_chan *chan,
+ 					struct dma_tx_state *txstate)
+ {
+ 	struct hpb_dmae_chan *hpb_chan = to_hpb_chan(chan);
+-	dma_cookie_t last_used;
+-	dma_cookie_t last_complete;
+ 	enum dma_status status;
+ 
+ 	hpb_dmae_chan_ld_cleanup(hpb_chan, false);
+ 
+-	last_used = chan->cookie;
+-	last_complete = hpb_chan->common.completed_cookie;
+-	BUG_ON(last_complete < 0);
+-	dma_set_tx_state(txstate, last_complete, last_used, 0);
+-
+ 	spin_lock_bh(&hpb_chan->desc_lock);
+ 
+-	status = dma_async_is_complete(cookie, last_complete, last_used);
++	status = dma_cookie_status(chan, cookie, txstate);
+ 
+ 	/*
+ 	 * If we don't find cookie on the queue, it has been aborted and we have
+-- 
+1.7.9.5
+

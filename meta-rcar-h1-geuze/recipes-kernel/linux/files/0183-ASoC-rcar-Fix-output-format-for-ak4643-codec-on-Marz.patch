@@ -1,0 +1,27 @@
+From ee9c0e1b70b94dbb5af9f397b59ba71cde8995f7 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 14 Mar 2013 11:21:52 +0000
+Subject: [PATCH 183/215] ASoC: rcar: Fix output format for ak4643 codec on
+ Marzen board
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ sound/soc/rcar/rcar_ak4643.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/rcar/rcar_ak4643.c b/sound/soc/rcar/rcar_ak4643.c
+index 28e2aff..7b03095 100644
+--- a/sound/soc/rcar/rcar_ak4643.c
++++ b/sound/soc/rcar/rcar_ak4643.c
+@@ -56,7 +56,7 @@ static int rcar_codec1_dai_init(struct snd_soc_pcm_runtime *rtd)
+ 	}
+ 
+ 	ret = snd_soc_dai_set_fmt(codec, SND_SOC_DAIFMT_CBS_CFS |
+-					 SND_SOC_DAIFMT_I2S);
++					 SND_SOC_DAIFMT_LEFT_J);
+ 	if (ret) {
+ 		pr_err("snd_soc_dai_set_fmt err=%d\n", ret);
+ 		return ret;
+-- 
+1.7.9.5
+

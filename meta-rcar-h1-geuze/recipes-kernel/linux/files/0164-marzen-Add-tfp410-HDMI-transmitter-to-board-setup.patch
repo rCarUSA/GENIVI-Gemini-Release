@@ -1,0 +1,27 @@
+From e782b282d2db5509f3a5d9fc4b73cbc2dfce6acd Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Jun 2012 18:40:18 +0100
+Subject: [PATCH 164/215] marzen: Add tfp410 HDMI transmitter to board setup
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/board-marzen.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/board-marzen.c b/arch/arm/mach-shmobile/board-marzen.c
+index 07d88d0..b173be7 100644
+--- a/arch/arm/mach-shmobile/board-marzen.c
++++ b/arch/arm/mach-shmobile/board-marzen.c
+@@ -50,6 +50,9 @@
+ 
+ static struct i2c_board_info marzen_i2c_devices[] = {
+ 	{ I2C_BOARD_INFO("ak4642", 0x12), },
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
++	{ I2C_BOARD_INFO("tfp410", 0x3f), },
++#endif
+ };
+ 
+ /* Fixed 3.3V regulator to be used by SDHI0 */
+-- 
+1.7.9.5
+

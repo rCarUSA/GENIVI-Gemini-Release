@@ -1,0 +1,27 @@
+From 1ba0948f7ba3359afc8a1aab99728945dfa51c74 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 14 Mar 2013 11:21:13 +0000
+Subject: [PATCH 182/215] ASoC: rcar: Fix output format for ak4648 codec on
+ Hurricane board
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ sound/soc/rcar/rcar_ak4648.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/rcar/rcar_ak4648.c b/sound/soc/rcar/rcar_ak4648.c
+index d027907..40eaf9d 100644
+--- a/sound/soc/rcar/rcar_ak4648.c
++++ b/sound/soc/rcar/rcar_ak4648.c
+@@ -29,7 +29,7 @@ static int rcar_hurricane_pcm_hw_params(struct snd_pcm_substream *substream,
+ 	}
+ 
+ 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS |
+-					 SND_SOC_DAIFMT_I2S);
++					 SND_SOC_DAIFMT_LEFT_J);
+ 	if (ret)
+ 		pr_err("snd_soc_dai_set_fmt err=%d\n", ret);
+ 
+-- 
+1.7.9.5
+

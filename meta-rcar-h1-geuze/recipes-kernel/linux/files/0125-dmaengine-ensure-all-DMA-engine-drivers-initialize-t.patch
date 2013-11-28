@@ -1,0 +1,33 @@
+From 65727a9ef57a86c633427214d6531ffd1d949dcc Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 15 Feb 2013 14:06:48 +0000
+Subject: [PATCH 125/215] dmaengine: ensure all DMA engine drivers initialize
+ their cookies
+
+Ensure all DMA engine drivers initialize their cookies in the same way,
+so that they all behave in a similar fashion.  This means their first
+issued cookie will be 2 rather than 1, and will increment to INT_MAX
+before returning 1 and starting over.
+
+Based on commit 8ac695463f37af902e953d575d3f782e32e170da
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ drivers/dma/rcar-hpbdma.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index 5e07837..9503f53 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -998,6 +998,7 @@ static int __devinit hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
+ 
+ 	/* copy struct dma_device */
+ 	new_hpb_chan->common.device = &hpbdev->common;
++	dma_cookie_init(&new_hpb_chan->common);
+ 	new_hpb_chan->dev = hpbdev->common.dev;
+ 	new_hpb_chan->id = id;
+ 
+-- 
+1.7.9.5
+

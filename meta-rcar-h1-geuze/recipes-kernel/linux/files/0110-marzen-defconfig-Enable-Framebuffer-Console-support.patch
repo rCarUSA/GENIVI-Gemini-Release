@@ -1,0 +1,27 @@
+From c1d15e9ac69515ef596d80632118d5f2256cd41f Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Thu, 10 Jan 2013 15:22:07 +0000
+Subject: [PATCH 110/215] marzen: defconfig: Enable Framebuffer Console
+ support
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/configs/marzen_defconfig |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm/configs/marzen_defconfig b/arch/arm/configs/marzen_defconfig
+index c926af6..b918b91 100644
+--- a/arch/arm/configs/marzen_defconfig
++++ b/arch/arm/configs/marzen_defconfig
+@@ -112,6 +112,8 @@ CONFIG_VIDEO_VIN_RCAR=y
+ CONFIG_SOC_CAMERA=y
+ CONFIG_FB=y
+ CONFIG_FB_RCAR=y
++CONFIG_FRAMEBUFFER_CONSOLE=y
++CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
+ CONFIG_LOGO=y
+ CONFIG_SOUND=y
+ CONFIG_SND=y
+-- 
+1.7.9.5
+

@@ -1,0 +1,44 @@
+From 2c16481bb6fd8f3bc60202de7c0f3b3a06f95a71 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 1 Mar 2013 14:30:58 +0000
+Subject: [PATCH 137/215] ARM: shmobile: RCar: remove unused DMA
+ configurations
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c              |    2 --
+ arch/arm/mach-shmobile/include/mach/hpb-dmae.h |    2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 7dcbc64..2cf0735 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -95,10 +95,8 @@ static const struct hpb_dmae_channel rcar_dmae_channels[] = {
+ 	DMAE_CHANNEL(IRQ_DMAC_H(22), HPBDMA_SLAVE_SDHI0_RX),
+ 	/* ch.28 SSI0 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_ST),
+-	DMAE_CHANNEL(IRQ_DMAC_H(28), HPBDMA_SLAVE_SSI0_TX_MN),
+ 	/* ch.29 SSI1 */
+ 	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_ST),
+-	DMAE_CHANNEL(IRQ_DMAC_H(29), HPBDMA_SLAVE_SSI1_RX_MN),
+ };
+ 
+ static const unsigned int ts_shift[] = TS_SHIFT;
+diff --git a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+index 5181b22..97707ac 100644
+--- a/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
++++ b/arch/arm/mach-shmobile/include/mach/hpb-dmae.h
+@@ -28,9 +28,7 @@ enum {
+ 	HPBDMA_SLAVE_SDHI0_TX,		/*Ch.21*/
+ 	HPBDMA_SLAVE_SDHI0_RX,		/*Ch.22*/
+ 	HPBDMA_SLAVE_SSI0_TX_ST,	/*Ch.28*/
+-	HPBDMA_SLAVE_SSI0_TX_MN,	/*Ch.28*/
+ 	HPBDMA_SLAVE_SSI1_RX_ST,	/*Ch.29*/
+-	HPBDMA_SLAVE_SSI1_RX_MN,	/*Ch.29*/
+ };
+ 
+ #endif /* __ARCH_MACH_HPBDMAE_H */
+-- 
+1.7.9.5
+

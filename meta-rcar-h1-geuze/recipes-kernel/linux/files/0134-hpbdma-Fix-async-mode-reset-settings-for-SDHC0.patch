@@ -1,0 +1,37 @@
+From 76387ce167824f24ae4219e4307dd930f155125b Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 25 Feb 2013 14:42:38 +0000
+Subject: [PATCH 134/215] hpbdma: Fix async mode reset settings for SDHC0
+
+One channel should not perform an async reset on another channel
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index 7b5c4a4..ce56e1d 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -51,7 +51,7 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.id	= HPBDMA_SLAVE_SDHI0_TX,
+ 		.addr	= 0xffe4c000 + 0x30,
+ 		.dcr	= SPDS_16BIT | DMDL | DPDS_16BIT,
+-		.rstr	= ASRST21 | ASRST22 | ASRST23,
++		.rstr	= ASRST21,
+ 		.mdr	= ASMD21_SINGLE | ASBTMD21_NBURST,
+ 		.port	= 0x0D0C,
+ 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+@@ -60,7 +60,7 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.id	= HPBDMA_SLAVE_SDHI0_RX,
+ 		.addr	= 0xffe4c000 + 0x30,
+ 		.dcr	= SMDL | SPDS_16BIT | DPDS_16BIT,
+-		.rstr	= ASRST21 | ASRST22 | ASRST23,
++		.rstr	= ASRST22,
+ 		.mdr	= ASMD22_SINGLE | ASBTMD22_NBURST,
+ 		.port	= 0x0D0C,
+ 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE |
+-- 
+1.7.9.5
+

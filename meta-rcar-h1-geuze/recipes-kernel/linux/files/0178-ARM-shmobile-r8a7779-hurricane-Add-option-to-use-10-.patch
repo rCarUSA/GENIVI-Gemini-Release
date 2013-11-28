@@ -1,0 +1,117 @@
+From 29768aa27f7d6b96bde084bd70254ecb35f320a1 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Mon, 14 Jan 2013 14:21:46 +0000
+Subject: [PATCH 178/215] ARM: shmobile: r8a7779: hurricane: Add option to use
+ 10-bit cameras
+
+The ov10635 cameras can output 8 or 10-bit BT.656 data. By default
+they use 8-bit data. This change allows the user to select 10-bit
+data.
+Note: only VIN0 and VIN1 on the R-Car H1 support 10-bit YUV data.
+Due to pinmux conflicts with VIN1, you can no longer use VIN3.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/Kconfig           |    9 +++++++++
+ arch/arm/mach-shmobile/board-hurricane.c |   21 +++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index c87dd94..0516c83 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -183,6 +183,15 @@ choice
+ 
+ endchoice
+ 
++config MACH_HURRICANE_10BIT_CAMERAS
++	depends on MACH_HURRICANE
++	bool "Use 10-bit BT.656 cameras"
++	help
++	  Use 10-bit BT.656 OmniVision ov10635 cameras in VIN0 and VIN1.
++	  Turning this off means the board is setup for 8-bit BT.656 OmniVision cameras.
++	  Note: only VIN0 and VIN1 on the R-Car H1 support 10-bit YUV data.
++	  Due to pinmux conflicts with VIN1, you can no longer use VIN3.
++
+ comment "SH-Mobile System Configuration"
+ 
+ config CPU_HAS_INTEVT
+diff --git a/arch/arm/mach-shmobile/board-hurricane.c b/arch/arm/mach-shmobile/board-hurricane.c
+index 99cf8e2..0b0b189 100644
+--- a/arch/arm/mach-shmobile/board-hurricane.c
++++ b/arch/arm/mach-shmobile/board-hurricane.c
+@@ -716,6 +716,9 @@ static struct resource rcar_vin3_resources[] = {
+ };
+ 
+ static struct rcar_vin_info rcar_vin_info = {};
++static struct rcar_vin_info rcar_vin_10bit_info = {
++	.format = V4L2_MBUS_FMT_YUYV10_2X10,
++};
+ static u64 rcarvin_dmamask = DMA_BIT_MASK(32);
+ 
+ static struct platform_device rcar_vin0_device = {
+@@ -725,7 +728,11 @@ static struct platform_device rcar_vin0_device = {
+ 	.resource  = rcar_vin0_resources,
+ 	.dev  = {
+ 		.dma_mask = &rcarvin_dmamask,
++#ifdef CONFIG_MACH_HURRICANE_10BIT_CAMERAS
++		.platform_data = &rcar_vin_10bit_info,
++#else
+ 		.platform_data = &rcar_vin_info,
++#endif
+ 		.coherent_dma_mask = DMA_BIT_MASK(32),
+ 	},
+ };
+@@ -737,7 +744,11 @@ static struct platform_device rcar_vin1_device = {
+ 	.resource  = rcar_vin1_resources,
+ 	.dev  = {
+ 		.dma_mask = &rcarvin_dmamask,
++#ifdef CONFIG_MACH_HURRICANE_10BIT_CAMERAS
++		.platform_data = &rcar_vin_10bit_info,
++#else
+ 		.platform_data = &rcar_vin_info,
++#endif
+ 		.coherent_dma_mask = DMA_BIT_MASK(32),
+ 	},
+ };
+@@ -1022,6 +1033,10 @@ static void __init hurricane_init(void)
+ 
+ 	/* VIN0 */
+ 	gpio_request(GPIO_FN_VI0_CLK, NULL);
++#ifdef CONFIG_MACH_HURRICANE_10BIT_CAMERAS
++	gpio_request(GPIO_FN_VI0_G1, NULL);
++	gpio_request(GPIO_FN_VI0_G0, NULL);
++#endif
+ 	gpio_request(GPIO_FN_VI0_DATA7_VI0_B7, NULL);
+ 	gpio_request(GPIO_FN_VI0_DATA6_VI0_B6, NULL);
+ 	gpio_request(GPIO_FN_VI0_DATA5_VI0_B5, NULL);
+@@ -1033,6 +1048,10 @@ static void __init hurricane_init(void)
+ 
+ 	/* VIN1 */
+ 	gpio_request(GPIO_FN_VI1_CLK, NULL);
++#ifdef CONFIG_MACH_HURRICANE_10BIT_CAMERAS
++	gpio_request(GPIO_FN_VI1_G1, NULL);
++	gpio_request(GPIO_FN_VI1_G0, NULL);
++#endif
+ 	gpio_request(GPIO_FN_VI1_DATA7_VI1_B7, NULL);
+ 	gpio_request(GPIO_FN_VI1_DATA6_VI1_B6, NULL);
+ 	gpio_request(GPIO_FN_VI1_DATA5_VI1_B5, NULL);
+@@ -1055,6 +1074,7 @@ static void __init hurricane_init(void)
+ 	gpio_request(GPIO_FN_VI2_DATA0_VI2_B0, NULL);
+ #endif
+ 
++#ifndef CONFIG_MACH_HURRICANE_10BIT_CAMERAS
+ 	/* VIN3 */
+ 	gpio_request(GPIO_FN_VI3_CLK, NULL);
+ 	gpio_request(GPIO_FN_VI3_DATA7, NULL);
+@@ -1065,6 +1085,7 @@ static void __init hurricane_init(void)
+ 	gpio_request(GPIO_FN_VI3_DATA2, NULL);
+ 	gpio_request(GPIO_FN_VI3_DATA1, NULL);
+ 	gpio_request(GPIO_FN_VI3_DATA0, NULL);
++#endif /* !CONFIG_MACH_HURRICANE_10BIT_CAMERAS */
+ 
+ 
+ 	/* On-Chip Ethernet */
+-- 
+1.7.9.5
+

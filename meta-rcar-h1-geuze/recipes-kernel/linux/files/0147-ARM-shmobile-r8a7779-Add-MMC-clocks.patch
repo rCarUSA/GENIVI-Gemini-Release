@@ -1,0 +1,47 @@
+From 0ee78d43783654b915e5bf2ffc1563cc7dc6e4d2 Mon Sep 17 00:00:00 2001
+From: James Gomez <james.gomez@renesas.com>
+Date: Wed, 9 Jan 2013 11:07:28 +0000
+Subject: [PATCH 147/215] ARM: shmobile: r8a7779: Add MMC clocks
+
+Add support for the MMC0 and MMC1 mmcif clocks.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/clock-r8a7779.c |    7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-shmobile/clock-r8a7779.c b/arch/arm/mach-shmobile/clock-r8a7779.c
+index ca92157..d7bdd30 100644
+--- a/arch/arm/mach-shmobile/clock-r8a7779.c
++++ b/arch/arm/mach-shmobile/clock-r8a7779.c
+@@ -86,7 +86,7 @@ static struct clk div4_clks[DIV4_NR] = {
+ 				      0x0300, CLK_ENABLE_ON_INIT),
+ };
+ 
+-enum { MSTP323, MSTP322, MSTP321, MSTP320,
++enum { MSTP331, MSTP330, MSTP323, MSTP322, MSTP321, MSTP320,
+ 	MSTP120, MSTP115, MSTP114, MSTP110, MSTP109,
+ 	MSTP108, MSTP105, MSTP103, MSTP101, MSTP100,
+ 	MSTP030, MSTP029, MSTP028, MSTP027, MSTP026, MSTP025, MSTP024, MSTP023,
+@@ -95,6 +95,8 @@ enum { MSTP323, MSTP322, MSTP321, MSTP320,
+ 	MSTP_NR };
+ 
+ static struct clk mstp_clks[MSTP_NR] = {
++	[MSTP331] = SH_CLK_MSTP32(&div4_clks[DIV4_S4], MSTPCR3, 31, 0), /* MMC0 */
++	[MSTP330] = SH_CLK_MSTP32(&div4_clks[DIV4_S4], MSTPCR3, 30, 0), /* MMC1 */
+ 	[MSTP323] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 23, 0), /* SDHI0 */
+ 	[MSTP322] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 22, 0), /* SDHI1 */
+ 	[MSTP321] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 21, 0), /* SDHI2 */
+@@ -196,6 +198,9 @@ static struct clk_lookup lookups[] = {
+ 	CLKDEV_DEV_ID("rcarfb.0", &mstp_clks[MSTP103]), /* DU0 */
+ 	CLKDEV_DEV_ID("rcarfb.1", &mstp_clks[MSTP103]), /* DU1 */
+ 
++	CLKDEV_CON_ID("mmc0", &mstp_clks[MSTP331]), /* MMC0 */
++	CLKDEV_CON_ID("mmc1", &mstp_clks[MSTP330]), /* MMC1 */
++
+ 	CLKDEV_CON_ID("usb_fck", &mstp_clks[MSTP100]),
+ 	CLKDEV_CON_ID("usb_fck2", &mstp_clks[MSTP101]),
+ 
+-- 
+1.7.9.5
+

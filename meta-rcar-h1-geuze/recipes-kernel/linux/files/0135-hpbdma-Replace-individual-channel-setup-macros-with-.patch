@@ -1,0 +1,190 @@
+From 17c44ac18bbf342b3a1025cf42f54dd337ec805f Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Fri, 1 Mar 2013 14:17:58 +0000
+Subject: [PATCH 135/215] hpbdma: Replace individual channel setup macros with
+ flags
+
+Setup should specify the features of a DMA channel, not specific bits
+in registers.
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/hpb-dmae.c |    6 +--
+ drivers/dma/rcar-hpbdma.c         |   14 ++++--
+ include/linux/rcar-hpbdma.h       |   96 ++++++++++++++-----------------------
+ 3 files changed, 49 insertions(+), 67 deletions(-)
+
+diff --git a/arch/arm/mach-shmobile/hpb-dmae.c b/arch/arm/mach-shmobile/hpb-dmae.c
+index ce56e1d..046ee3c 100644
+--- a/arch/arm/mach-shmobile/hpb-dmae.c
++++ b/arch/arm/mach-shmobile/hpb-dmae.c
+@@ -51,8 +51,7 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.id	= HPBDMA_SLAVE_SDHI0_TX,
+ 		.addr	= 0xffe4c000 + 0x30,
+ 		.dcr	= SPDS_16BIT | DMDL | DPDS_16BIT,
+-		.rstr	= ASRST21,
+-		.mdr	= ASMD21_SINGLE | ASBTMD21_NBURST,
++		.mdr	= ASYNC_MD_SINGLE | ASYNC_BTMD_NBURST,
+ 		.port	= 0x0D0C,
+ 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+ 		.dma_ch	= 21,
+@@ -60,8 +59,7 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
+ 		.id	= HPBDMA_SLAVE_SDHI0_RX,
+ 		.addr	= 0xffe4c000 + 0x30,
+ 		.dcr	= SMDL | SPDS_16BIT | DPDS_16BIT,
+-		.rstr	= ASRST22,
+-		.mdr	= ASMD22_SINGLE | ASBTMD22_NBURST,
++		.mdr	= ASYNC_MD_SINGLE | ASYNC_BTMD_NBURST,
+ 		.port	= 0x0D0C,
+ 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE |
+ 				HPB_DMAE_SET_SHPT1,
+diff --git a/drivers/dma/rcar-hpbdma.c b/drivers/dma/rcar-hpbdma.c
+index b0cf986..15f5280 100644
+--- a/drivers/dma/rcar-hpbdma.c
++++ b/drivers/dma/rcar-hpbdma.c
+@@ -322,9 +322,16 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 	struct hpb_dmae_device *hpbdev = to_hpb_dev(hpb_chan);
+ 	struct hpb_dmae_slave *param = hpb_chan->common.private;
+ 
+-	if (param->config->flags & HPB_DMAE_SET_ASYNC_MODE)
++	if (param->config->flags & HPB_DMAE_SET_ASYNC_MODE) {
++		u32 mdr = 0;
++		if (param->config->mdr & ASYNC_MD_SINGLE)
++			mdr |= ASMD_SINGLE(param->config->dma_ch);
++		if (param->config->mdr & ASYNC_BTMD_BURST)
++			mdr |= ASBTMD_BURST(param->config->dma_ch);
++
+ 		dmae_set_async_mode(hpbdev, MD_MASK(param->config->dma_ch),
+-					param->config->mdr);
++					mdr);
++	}
+ 	dmae_select_shpt(hpbdev, param->config->dma_ch, param->config->flags);
+ 	dmae_set_dcr(hpb_chan, param->config->dcr);
+ 	dmae_set_port(hpb_chan, param->config->port);
+@@ -337,7 +344,8 @@ static void hpb_chan_xfer_ld_queue(struct hpb_dmae_chan *hpb_chan)
+ 				desc->hw.tcr, desc->hw.sar, desc->hw.dar);
+ 
+ 			if (param->config->flags & HPB_DMAE_SET_ASYNC_RESET)
+-				dmae_async_reset(hpbdev, param->config->rstr);
++				dmae_async_reset(hpbdev,
++					ASYNC_RESET(param->config->dma_ch));
+ 
+ 			/* Get the ld start address from ld_queue */
+ 			if (hpb_chan->tran_mode == TRAN_SINGLE) {
+diff --git a/include/linux/rcar-hpbdma.h b/include/linux/rcar-hpbdma.h
+index be3ce0e..945a514 100644
+--- a/include/linux/rcar-hpbdma.h
++++ b/include/linux/rcar-hpbdma.h
+@@ -82,65 +82,42 @@
+ #define DDBGR	0x38
+ #define DDBGR2	0x3C
+ 
+-#define		ASRST41		(1 << 10)	/* SDHI3 */
+-#define		ASRST40		(1 << 9)	/* SDHI3 */
+-#define		ASRST39		(1 << 8)	/* SDHI3 */
+-#define		ASRST27		(1 << 7)	/* SDHI2 */
+-#define		ASRST26		(1 << 6)	/* SDHI2 */
+-#define		ASRST25		(1 << 5)	/* SDHI2 */
+-#define		ASRST23		(1 << 3)	/* SDHI0 */
+-#define		ASRST22		(1 << 2)	/* SDHI0 */
+-#define		ASRST21		(1 << 1)	/* SDHI0 */
+-
+-#define		ASMD41_SINGLE	(1 << 19)	/* SDHI3 */
+-#define		ASMD41_MULTI	(0 << 19)	/* SDHI3 */
+-#define		ASBTMD41_BURST	(1 << 18)	/* SDHI3 */
+-#define		ASBTMD41_NBURST	(0 << 18)	/* SDHI3 */
+-#define		ASMD40_SINGLE	(1 << 17)	/* SDHI3 */
+-#define		ASMD40_MULTI	(0 << 17)	/* SDHI3 */
+-#define		ASBTMD40_BURST	(1 << 16)	/* SDHI3 */
+-#define		ASBTMD40_NBURST	(0 << 16)	/* SDHI3 */
+-#define		ASMD39_SINGLE	(1 << 15)	/* SDHI3 */
+-#define		ASMD39_MULTI	(0 << 15)	/* SDHI3 */
+-#define		ASBTMD39_BURST	(1 << 14)	/* SDHI3 */
+-#define		ASBTMD39_NBURST	(0 << 14)	/* SDHI3 */
+-#define		ASMD27_SINGLE	(1 << 13)	/* SDHI2 */
+-#define		ASMD27_MULTI	(0 << 13)	/* SDHI2 */
+-#define		ASBTMD27_BURST	(1 << 12)	/* SDHI2 */
+-#define		ASBTMD27_NBURST	(0 << 12)	/* SDHI2 */
+-#define		ASMD26_SINGLE	(1 << 11)	/* SDHI2 */
+-#define		ASMD26_MULTI	(0 << 11)	/* SDHI2 */
+-#define		ASBTMD26_BURST	(1 << 10)	/* SDHI2 */
+-#define		ASBTMD26_NBURST	(0 << 10)	/* SDHI2 */
+-#define		ASMD25_SINGLE	(1 << 9)	/* SDHI2 */
+-#define		ASMD25_MULTI	(0 << 9)	/* SDHI2 */
+-#define		ASBTMD25_BURST	(1 << 8)	/* SDHI2 */
+-#define		ASBTMD25_NBURST	(0 << 8)	/* SDHI2 */
+-#define		ASMD23_SINGLE	(1 << 7)	/* SDHI1 */
+-#define		ASMD23_MULTI	(0 << 7)	/* SDHI1 */
+-#define		ASBTMD23_BURST	(1 << 6)	/* SDHI1 */
+-#define		ASBTMD23_NBURST	(0 << 6)	/* SDHI1 */
+-#define		ASMD22_SINGLE	(1 << 5)	/* SDHI1 */
+-#define		ASMD22_MULTI	(0 << 5)	/* SDHI1 */
+-#define		ASBTMD22_BURST	(1 << 4)	/* SDHI1 */
+-#define		ASBTMD22_NBURST	(0 << 4)	/* SDHI1 */
+-#define		ASMD21_SINGLE	(1 << 3)	/* SDHI1 */
+-#define		ASMD21_MULTI	(0 << 3)	/* SDHI1 */
+-#define		ASBTMD21_BURST	(1 << 2)	/* SDHI1 */
+-#define		ASBTMD21_NBURST	(0 << 2)	/* SDHI1 */
+-
+-#define MD_MASK(x)	((x == 20) ? (3 << 0) : \
+-			((x == 21) ? (3 << 2) : \
+-			((x == 22) ? (3 << 4) : \
+-			((x == 23) ? (3 << 6) : \
+-			((x == 25) ? (3 << 8) : \
+-			((x == 26) ? (3 << 10) : \
+-			((x == 27) ? (3 << 12) : \
+-			((x == 39) ? (3 << 14) : \
+-			((x == 40) ? (3 << 16) : \
+-			((x == 41) ? (3 << 18) : \
+-			((x == 24) ? (3 << 20) : \
+-			((x == 43) ? (3 << 22) : 0))))))))))))
++#define ASYNC_RESET_OFFSET(x)	((x == 20) ? 0 : \
++				((x == 21) ? 1 : \
++				((x == 22) ? 2 : \
++				((x == 23) ? 3 : \
++				((x == 24) ? 4 : \
++				((x == 25) ? 5 : \
++				((x == 26) ? 6 : \
++				((x == 27) ? 7 : \
++				((x == 39) ? 8 : \
++				((x == 40) ? 9 : \
++				((x == 41) ? 10 : \
++				((x == 43) ? 11 : 0))))))))))))
++#define ASYNC_RESET(chan)	(1 << ASYNC_RESET_OFFSET(chan))
++
++#define ASYNC_MD_OFFSET(x)	((x == 20) ? 0 : \
++				((x == 21) ? 2 : \
++				((x == 22) ? 4 : \
++				((x == 23) ? 6 : \
++				((x == 25) ? 8 : \
++				((x == 26) ? 10 : \
++				((x == 27) ? 12 : \
++				((x == 39) ? 14 : \
++				((x == 40) ? 16 : \
++				((x == 41) ? 18 : \
++				((x == 24) ? 20 : \
++				((x == 43) ? 22 : 0))))))))))))
++#define MD_MASK(chan)		(3 << ASYNC_MD_OFFSET(chan))
++#define ASMD_SINGLE(chan)	(1 << (ASYNC_MD_OFFSET(chan)+1))
++#define ASMD_MULTI(chan)	(0 << (ASYNC_MD_OFFSET(chan)+1))
++#define ASBTMD_BURST(chan)	(1 << ASYNC_MD_OFFSET(chan))
++#define ASBTMD_NBURST(chan)	(0 << ASYNC_MD_OFFSET(chan))
++
++#define ASYNC_MD_SINGLE		(1 << 0)
++#define ASYNC_MD_MULTI		(1 << 1)
++#define ASYNC_BTMD_BURST	(1 << 2)
++#define ASYNC_BTMD_NBURST	(1 << 3)
+ 
+ /* DMA common register*/
+ #define DTIMR			0x00
+@@ -243,7 +220,6 @@ struct hpb_dmae_slave_config {
+ 	dma_addr_t	addr;
+ 	u32		dcr;
+ 	u32		port;
+-	u32		rstr;
+ 	u32		mdr;
+ 	u32		flags;
+ #define	HPB_DMAE_SET_ASYNC_RESET	(1<<0)
+-- 
+1.7.9.5
+

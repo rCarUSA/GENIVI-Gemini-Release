@@ -1,0 +1,157 @@
+From 934c6d84b8ab7183338255b6b222a42fe2878197 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Wed, 12 Dec 2012 12:17:25 +0000
+Subject: [PATCH 169/215] marzen: Add on-chip ethernet device
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/mach-shmobile/board-marzen.c |   98 +++++++++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)
+
+diff --git a/arch/arm/mach-shmobile/board-marzen.c b/arch/arm/mach-shmobile/board-marzen.c
+index 651adcb..85633dd 100644
+--- a/arch/arm/mach-shmobile/board-marzen.c
++++ b/arch/arm/mach-shmobile/board-marzen.c
+@@ -19,6 +19,7 @@
+  */
+ 
+ #include <linux/kernel.h>
++#include <linux/ctype.h>
+ #include <linux/init.h>
+ #include <linux/interrupt.h>
+ #include <linux/irq.h>
+@@ -32,6 +33,7 @@
+ #include <linux/smsc911x.h>
+ #include <linux/spi/spi.h>
+ #include <linux/spi/sh_hspi.h>
++#include <linux/sh_eth.h>
+ #include <linux/mmc/sh_mobile_sdhi.h>
+ #include <linux/mfd/tmio.h>
+ #include <linux/usb/rcar-usb.h>
+@@ -97,6 +99,67 @@ static struct platform_device eth_device = {
+ 	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+ };
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++static struct resource rcar_eth_resources[] = {
++	[0] = {
++		.name   = "sh-eth",
++		.start = 0xfde00200,
++		.end   = 0xfde003fc,
++		.flags = IORESOURCE_MEM,
++	},
++	[1] = {
++		.start = gic_spi(148),
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++static struct sh_eth_plat_data rcar_eth_plat = {
++	.phy = 0x1f, /* SMSC LAN8700 */
++	.edmac_endian = EDMAC_LITTLE_ENDIAN,
++	.register_type = SH_ETH_REG_FAST_SH4,
++	.phy_interface = PHY_INTERFACE_MODE_RMII,
++	.ether_link_active_low = 1
++};
++
++static struct platform_device rcar_eth_device = {
++	.name = "sh-eth",
++	.id	= 0,
++	.dev = {
++		.platform_data = &rcar_eth_plat,
++	},
++	.num_resources = ARRAY_SIZE(rcar_eth_resources),
++	.resource = rcar_eth_resources,
++};
++
++/* This function parses Renesas on-chip ethernet command line args,
++   e.g. rmac=14:fe:b6:a5:33:21 */
++static void __init parse_mac_addr(char *macstr)
++{
++	int i, j;
++	unsigned char result, value;
++
++	for (i = 0; i < 6; i++) {
++		result = 0;
++
++		if (i != 5 && *(macstr + 2) != ':')
++			return;
++
++		for (j = 0; j < 2; j++) {
++			if (isxdigit(*macstr)
++			    && (value = isdigit(*macstr) ? *macstr - '0'
++				      : toupper(*macstr) - 'A' + 10) < 16) {
++				result = result * 16 + value;
++				macstr++;
++			} else
++				return;
++		}
++
++		macstr++;
++		rcar_eth_plat.mac_addr[i] = result;
++	}
++}
++#endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH */
++
+ static struct resource sdhi0_resources[] = {
+ 	[0] = {
+ 		.name	= "sdhi0",
+@@ -752,6 +815,9 @@ static struct platform_device *marzen_devices[] __initdata = {
+ 	&alsa_soc_platform_device,
+ 	&sru_device,
+ 	&rcar_display_device,
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++	&rcar_eth_device,
++#endif
+ #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
+ 	&rcar_vin0_device,
+ #endif
+@@ -934,6 +1000,27 @@ static void __init marzen_init(void)
+ 	gpio_request(GPIO_FN_VI3_DATA1, NULL);
+ 	gpio_request(GPIO_FN_VI3_DATA0, NULL);
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++	dev_set_drvdata(&rcar_eth_device.dev, &rcar_eth_plat);
++
++	gpio_request(GPIO_FN_ETH_MDC, NULL);
++	gpio_request(GPIO_FN_ETH_MDIO, NULL);
++	gpio_request(GPIO_FN_ETH_TX_EN, NULL);
++	gpio_request(GPIO_FN_ETH_RX_ER, NULL);
++	gpio_request(GPIO_FN_ETH_RXD0, NULL);
++	gpio_request(GPIO_FN_ETH_RXD1, NULL);
++	gpio_request(GPIO_FN_ETH_TXD0, NULL);
++	gpio_request(GPIO_FN_ETH_TXD1, NULL);
++	gpio_request(GPIO_FN_ETH_LINK, NULL);
++	gpio_request(GPIO_FN_ETH_MAGIC, NULL);
++	gpio_request(GPIO_FN_ETH_CRS_DV, NULL);
++	gpio_request(GPIO_FN_ETH_REFCLK, NULL);
++
++	/* Enable pin for LAN8700: Drive GPIO pin high */
++	gpio_request(GPIO_GP_4_15, NULL);
++	gpio_direction_output(GPIO_GP_4_15, 1);
++#endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH */
++
+ 	r8a7779_add_standard_devices();
+ 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
+ 
+@@ -946,6 +1033,17 @@ static void __init marzen_init(void)
+ 	rcar_usbh_init();
+ }
+ 
++#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH
++static int __init setup_rmac(char *s)
++{
++	printk(KERN_INFO "rmac = %s\n", s);
++	parse_mac_addr(s);
++	return 0;
++}
++
++__setup("rmac=", setup_rmac);
++#endif /* CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_ETH */
++
+ MACHINE_START(MARZEN, "marzen")
+ 	.map_io		= r8a7779_map_io,
+ 	.init_early	= r8a7779_add_early_devices,
+-- 
+1.7.9.5
+

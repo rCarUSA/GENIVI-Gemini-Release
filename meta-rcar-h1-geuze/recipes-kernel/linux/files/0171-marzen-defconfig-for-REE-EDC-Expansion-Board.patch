@@ -1,0 +1,40 @@
+From 8bb8ef804cf9de5fc0f6815369da881a0fedf1b6 Mon Sep 17 00:00:00 2001
+From: Phil Edworthy <phil.edworthy@renesas.com>
+Date: Tue, 14 Aug 2012 09:52:10 +0100
+Subject: [PATCH 171/215] marzen: defconfig for REE-EDC Expansion Board
+
+Signed-off-by: Phil Edworthy <phil.edworthy@renesas.com>
+---
+ arch/arm/configs/marzen_defconfig |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm/configs/marzen_defconfig b/arch/arm/configs/marzen_defconfig
+index b918b91..6b50dc8 100644
+--- a/arch/arm/configs/marzen_defconfig
++++ b/arch/arm/configs/marzen_defconfig
+@@ -81,6 +81,7 @@ CONFIG_NETDEVICES=y
+ # CONFIG_NET_VENDOR_INTEL is not set
+ # CONFIG_NET_VENDOR_MICREL is not set
+ # CONFIG_NET_VENDOR_NATSEMI is not set
++CONFIG_SH_ETH=y
+ # CONFIG_NET_VENDOR_SEEQ is not set
+ CONFIG_SMC911X=y
+ CONFIG_SMSC911X=y
+@@ -104,12 +105,14 @@ CONFIG_THERMAL=y
+ CONFIG_RCAR_THERMAL=y
+ CONFIG_SSB=y
+ CONFIG_MEDIA_SUPPORT=y
++CONFIG_VIDEO_TFP410=y
+ CONFIG_VIDEO_DEV=y
+ # CONFIG_RC_CORE is not set
+ CONFIG_VIDEO_ADV7180=y
+ CONFIG_V4L_PLATFORM_DRIVERS=y
+ CONFIG_VIDEO_VIN_RCAR=y
+ CONFIG_SOC_CAMERA=y
++CONFIG_SOC_CAMERA_OV10635=y
+ CONFIG_FB=y
+ CONFIG_FB_RCAR=y
+ CONFIG_FRAMEBUFFER_CONSOLE=y
+-- 
+1.7.9.5
+
