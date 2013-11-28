@@ -1,0 +1,8 @@
+[Unit]
+Description=Network Time Protocol client
+Before=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ntpd-set.sh
+RemainAfterExit=true

@@ -1,0 +1,17 @@
+diff --git a/arch/arm/boot/dts/r8a7791-koelsch.dts b/arch/arm/boot/dts/r8a7791-koelsch.dts
+index e892242..0a520a2 100644
+--- a/arch/arm/boot/dts/r8a7791-koelsch.dts
++++ b/arch/arm/boot/dts/r8a7791-koelsch.dts
+@@ -16,8 +16,10 @@
+ 	model = "Koelsch";
+ 	compatible = "renesas,koelsch", "renesas,r8a7791";
+ 
+-	chosen {
+-		bootargs = "console=ttySC6,38400 mem=768M ip=dhcp root=/dev/nfs ignore_loglevel";
++	chosen {				
++	
++		bootargs = "console=ttySC6,38400 mem=768M rootwait rw noinitrd root=/dev/mmcblk0p1 ignore_loglevel";
++		
+ 	};
+ 
+ 	memory@40000000 {

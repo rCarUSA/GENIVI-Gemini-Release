@@ -1,0 +1,39 @@
+This README file contains information on building extra softwares for GENIVI IVI
+
+====================
+
+1/ This layer support to build extra packages with GENIVI Gemini image
+	bzip2
+	coreutils
+	dpkg
+	gnome-desktop
+	gst-ffmpeg
+	gst-plugins-ugly
+	gst-plugins-base
+	gst-plugins-good
+ 	libxcb
+	libxt
+    libxmu
+	mesa-demos
+	ntp
+	openssh
+	sysklogd
+	xeyes
+	
+	
+2/ To Enable Renesas IVI extra packages
+
+Add to $HOME/genivi-baseline/build/conf/bblayers.conf, the path below:
+	$HOME/genivi-baseline/meta-renesas-ivi \ 
+
+Change variables in $HOME/genivi-baseline/build/conf/local.conf
+	DISTRO ?= "poky-rea-systemd" # For Renesas IVI	
+	
+	BBMASK = "meta-ivi/recipes-graphics|meta-ivi/recipes-extended/shadow-securetty|meta-ivi/recipes-core-ivi/busybox" # For Renesas IVI
+	
+	LICENSE_FLAGS_WHITELIST = "commercial license" #
+	
+	
+3/ Build image
+Build gemini-image including GENIVI 5.0 (Gemini G1.0) components 
+	bitbake gemini-image-rea

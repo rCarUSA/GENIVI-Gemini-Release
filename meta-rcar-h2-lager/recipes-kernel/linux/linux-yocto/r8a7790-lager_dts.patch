@@ -1,0 +1,14 @@
+diff --git a/arch/arm/boot/dts/r8a7790-lager.dts b/arch/arm/boot/dts/r8a7790-lager.dts
+index 72579bc..2561873 100644
+--- a/arch/arm/boot/dts/r8a7790-lager.dts
++++ b/arch/arm/boot/dts/r8a7790-lager.dts
+@@ -17,7 +17,8 @@
+ 	compatible = "renesas,lager", "renesas,r8a7790";
+ 
+ 	chosen {
+-		bootargs = "console=ttySC6,38400 mem=1024M ip=dhcp root=/dev/nfs ignore_loglevel";
++		/*bootargs = "console=ttySC6,38400 mem=1024M ip=dhcp root=/dev/nfs ignore_loglevel";*/
++		bootargs = "console=ttySC6,38400 mem=1024M rootwait rw noinitrd root=/dev/mmcblk0p1 ignore_loglevel";
+ 	};
+ 
+ 	memory@40000000 {
