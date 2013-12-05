@@ -1,0 +1,247 @@
+This README file contains information on building the meta-rcar-h1-marzen
+BSP layer, and booting the images contained in the /binary directory.
+Please see the corresponding sections below for details.
+
+Further information on the R-Car platform can be found here:
+http://www.renesas.eu/products/soc/assp/automotive/index.jsp?campaign=tb_prod
+
+Dependencies
+============
+
+This layer depends on:
+
+  URI: git://git.openembedded.org/bitbake
+  branch: master
+
+  URI: git://git.openembedded.org/openembedded-core
+  layers: meta
+  branch: master
+
+Toolchain
+---------
+The Marzen BSP is developed and tested using the GCC toolchain 
+Code Sourcery G++ Lite 2010.09-50 for ARM GNU/Linux which can be obtained from here:
+http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
+
+To direct Yocto to use this toolchain you should add the following entries to 
+your local.conf in poky/build/conf/:
+TCMODE = "external-csl"
+EXTERNAL_TOOLCHAIN = "<path to toolchain>/arm-2010.09"
+CSL_VER_MAIN = "2010.09-50"
+TARGET_PREFIX = "arm-none-linux-gnueabi-"
+
+EXTERNAL_TOOLCHAIN should point to the root directory of where the toolchain was installed.
+
+
+Patches
+=======
+Please submit any patches against this BSP to the maintainer.
+
+Maintainer: Stephen Lawrence <stephen.lawrence@renesas.com>
+
+
+Table of Contents
+=================
+
+1. Building the meta-rcar-h1-marzen BSP layer
+2. Booting the images in /binary
+3. Kernel notes
+4. Genivi notes
+5. History
+
+1. Building the meta-rcar-h1-marzen BSP layer
+=============================================
+
+Assuming you extracted the BSP tarball contents at the top-level of 
+your yocto build tree, you can build a rcar-h1-marzen image by adding 
+the location of the meta-rcar-h1-marzen layer to bblayers.conf, 
+along with any other layers needed (to access common metadata shared 
+between BSPs) e.g.:
+
+  yocto/meta-rcar-h1-marzen \
+
+To enable the rcar-h1-marzen layer, add the rcar-h1-marzen MACHINE to local.conf:
+
+  MACHINE ?= "rcar-h1-marzen"
+
+You should then be able to build a rcar-h1-marzen image such as:
+
+  $ source oe-init-build-env
+  $ bitbake core-image-minimal
+
+To build the kernel alone, using the mainline kernel recipe:
+  $ bitbake linux-mainline
+
+To build u-boot alone:
+  $ bitbake u-boot
+
+
+2. Booting the images in /binary
+================================
+
+Memory Map
+----------
+Memory:      Address:               Function:
+NAND Flash   0x00000000-0x0001FFFF  U-Boot
+             0x00020000-0x005FFFFF  U-Boot environment
+             0x00600000-0x006FFFFF  Kernel image (optional)
+DDR          0x60000000-0x9FFFFFFF  Kernel
+
+Hardware
+--------
+The serial port on the R-Car H1 device is attached to a serial to 
+USB convertor on the Marzen board. Please connect a PC to the board 
+using a mini-USB cable on connector CN18 (DEBUG0). You may need to 
+install drivers for the Silicon Labs CP210x USB to UART Bridge on 
+your host PC.
+
+The serial settings are:
+Baud rate: 115200
+Data: 8 bits
+Parity: None
+Stop: 1 bit
+Flow control: None
+
+Please connect the PC to the board using Ethernet, either using an Ethernet 
+cross-over cable or using an Ethernet switch, on connector CN9 (LAN).
+
+U-Boot
+------
+Most of the commands described here rely on the Marzen board 
+downloading binary images, over Ethernet, from a TFTP server. 
+Once you have setup a TFTP server, the IP addresses used by
+U-Boot must be setup on the board, for example:
+  $ setenv ipaddr 192.168.1.31
+  $ setenv netmask 255.255.255.0
+  $ setenv serverip 192.168.1.30
+  $ setenv gatewayip ${serverip}
+  $ saveenv
+
+Flash a new U-Boot image:
+The following U-Boot commands can be used install a new U-Boot image.
+It loads the new image from a TFTP server.
+  $ tftp /marzen/boot/u-boot.bin
+  $ protect off all
+  $ erase 0 +${filesize}
+  $ cp.b ${fileaddr} 0 ${filesize}
+
+Flash a new kernel image:
+The following U-Boot commands can be used to copy a new kernel image 
+to flash memory. It loads the new image from a TFTP server.
+  $ tftp /marzen/boot/uImage
+  $ protect off all
+  $ erase 0x00600000 +${filesize}
+  $ cp.b ${fileaddr} 0x00600000 ${filesize}
+  $ setenv bootcmd 'cp.l 0x00600000 0x60007fc0 0x100000; bootm'
+  $ saveenv
+
+Kernel arguments for root file system on microSD card:
+The following U-Boot commands can be used to setup the kernel argument 
+to use a root file system on the microSD card.
+  $ setenv bootargs console=ttySC2,115200 root=/dev/mmcblk0p1 rootwait
+  $ saveenv
+
+Kernel arguments for root file system on USB:
+The following U-Boot commands can be used to setup the kernel argument 
+to use a root file system on a USB stick.
+  $ setenv bootargs console=ttySC2,115200 root=/dev/sda1 rootwait
+  $ saveenv
+
+Development:
+The following U-Boot commands can be used to load the kernel image from 
+a TFTP server, and use an NFS mounted root file system. This assumes 
+static IP addresses are used.
+  $ setenv bootfile /marzen/boot/uImage
+  $ setenv bootcmd 'tftp; bootm'
+  $ setenv bootargs console=ttySC2,115200 root=/dev/nfs rw
+nfsroot=${serverip}:/tftpboot/marzen ip=${ipaddr}
+  $ saveenv
+
+
+3. Kernel notes
+===============
+
+Display:
+The display resolution can be changed using the fbset tool, for example:
+  $ fbset -fb /dev/fb0 -xres 1280 -yres 720 -depth 16
+
+Images can be displayed using fbv, for example:
+  $ fbv image.jpg
+
+Note: fbv uses the current framebuffer, as determined from the FRAMEBUFFER environment
+variable. If you wish to output images using DU1, you can do:
+  $ export FRAMEBUFFER=/dev/fb1
+  $ fbv image.jpg
+
+Audio:
+By default the audio output is muted. To change this, run:
+  $ amixer set 'LINEOUT Mixer DACL' unmute
+
+You can play PCM audio, for example:
+  $ aplay music.wav
+
+USB Host:
+When you insert a formatted USB stick, you will see notification messages. 
+You can then mount the stick, for example:
+  $ mkdir –p /mnt/usb
+  $ mount /dev/sda1 /mnt/usb
+
+SD:
+When you insert a formatted microSD card, you will see notification messages. 
+You can then mount the card, for example:
+  $ mkdir –p /mnt/sd
+  $ mount /dev/mmcblk0p1 /mnt/sd
+
+
+4. Genivi notes
+===============
+
+Genivi is an Automotive Alliance with the mission to drive the broad adoption 
+of an In-Vehicle Infotainment (IVI) open-source development platform.
+More information can be found on the Genivi websites:
+http://www.genivi.org/
+http://projects.genivi.org/home 
+
+This layer has been succesfully tested with the Genivi meta-ivi layer.
+
+
+5. History
+==========
+
+5.1 Release 2.0
+---------------
+Updates:
++ Migrated to R-Car H1 BSP for Linux Kernel 3.4 Release 2.0
+  Linux Kernel:	
+  - Added Hurricane Board Support
+  - GPIO:
+      Ability to use mixed input and output pins on the same port.
+  - R-Car VIN driver:
+      Add support for 10-bit BT.656 cameras
+  - v4l2 SoC Camera driver: OmniVision ov10635:
+      Add support for 10-bit BT.656 output
+  - v4l2 SoC Camera framework:
+      Add SoC support for V4L2_MBUS_FMT_YUYV10_2X10
+  - MMC driver:
+      Back port of upstream/pending fixes.
+  - ALSA SoC: ak4642:
+      Add support for linein/lineout and mic in/headphone out.
+  - HPB DMAC
+      Fix use for SDHI (fixes incorrectly numbered DMA channels).
+      Driver ability to support separate Tx and Rx channels on the same physical DMAC channel. 
+      This is needed to allow the MMC driver to use DMA, and also needed when more peripherals use DMA.
+  - USB
+      Fixed pin multiplexing for USB ch 2
+
+  U-Boot:
+  - Added Hurricane Board Support
+      Support standard (non-eMMC) mode
+      Support eMMC mode
+
++ Kernel, U-Boot and Yocto BSP now hosted on github
++ Removed yocto kernel recipe support
++ Renamed mainline kernel recipe to linux-yocto-custom
+
+5.2 Release 1.0
+---------------
+Initial release
