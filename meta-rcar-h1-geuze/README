@@ -1,5 +1,5 @@
 This README file contains information on building the meta-rcar-h1-geuze
-BSP layer with GENIVI project
+BSP layer with GENIVI 5.0.1 - Gemini 1.1 project
 
 ===================
 
@@ -8,54 +8,19 @@ BSP layer with GENIVI project
     mkdir $HOME/genivi-baseline
     cd $HOME/genivi-baseline
     git clone git://git.yoctoproject.org/poky
-    cd poky; git checkout faf8f8660fae26a14578738b642fdeb08bcb9d54; cd -
+    cd poky; git checkout dora; cd -
     git clone git://git.yoctoproject.org/meta-ivi
-    cd meta-ivi; git checkout 475cad16ebd911a681d7a087dcca64cd8bba0b6f; cd -
-	
-	
+    cd meta-ivi; git checkout 5.0.1; cd -
+		
 2/ Create conf files and building environment
- 
+
 	source poky/oe-init-build-env
 	
-	
-3/ Configure BBLayer of GENIVI IVI
+3/ At default build directory, configure the build
 
-Add to $HOME/genivi-baseline/build/conf/bblayers.conf, the path below:
+	cp ../meta-rcar-h1-geuze/pre-conf/*.conf ./conf
 
-	$HOME/genivi-baseline/meta-ivi \
-	$HOME/genivi-baseline/meta-rea/meta-rcar-h1-geuze \ 
-	
-	
+4/ Build gemini-image including GENIVI 5.0.1 (Gemini G1.1) components 
 
-4/ Configure Machine (target hardware) and build options
-
-Add/modify some attributes in $HOME/genivi-baseline/build/conf/local.conf file as below
-	
-	Select target
-		MACHINE ??= "rcar-h1-geuze"	
-	
-	Change flags to build some necessary packages	
-		INCOMPATIBLE_LICENSE = "GPLv3" 
-		
-	Optional setting to increase build speed
-		BB_NUMBER_THREADS = "16"
-		PARALLEL_MAKE = "-j 16"
-
-		
-5/ To Enable Renesas IVI extra packages
-
-Add to $HOME/genivi-baseline/build/conf/bblayers.conf, the path below:
-	$HOME/genivi-baseline/meta-renesas-ivi \ # Enable Renesas IVI layer
-
-Change variables in $HOME/genivi-baseline/build/conf/local.conf
-	DISTRO ?= "poky-rea-systemd" # For Renesas IVI	
-	
-	BBMASK = "meta-ivi/recipes-graphics|meta-ivi/recipes-extended/shadow-securetty|meta-ivi/recipes-core-ivi/busybox" # For Renesas IVI
-	
-	LICENSE_FLAGS_WHITELIST = "commercial license" # For Renesas IVI
-	
-
-6/ Build image:
-Build gemini-image including GENIVI 5.0 (Gemini G1.0) components 
 	bitbake gemini-image-rea
 	
