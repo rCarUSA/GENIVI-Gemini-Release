@@ -15,6 +15,7 @@ IMAGE_INSTALL_append = " \
 	gst-plugins-ugly \
 	gst-plugins-base \
 	gst-plugins-good \
+	packagegroup-specific-components \
 "
 
 # Add image specific packages

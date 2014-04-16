@@ -1,5 +1,5 @@
 This README file contains information on building the meta-rcar-h2-lager
-BSP layer with GENIVI 5.0.1 - Gemini 1.1 project
+BSP layer with GENIVI 5.0.2 - Gemini 1.2 project
 
 ===================
 
@@ -10,7 +10,7 @@ BSP layer with GENIVI 5.0.1 - Gemini 1.1 project
     git clone git://git.yoctoproject.org/poky
     cd poky; git checkout dora; cd -
     git clone git://git.yoctoproject.org/meta-ivi
-    cd meta-ivi; git checkout 5.0.1; cd -
+    cd meta-ivi; git checkout 5.0.2; cd -
    
 2/ Create conf files and building environment
  
@@ -20,6 +20,6 @@ BSP layer with GENIVI 5.0.1 - Gemini 1.1 project
 
 	cp ../meta-rcar-h2-lager/pre-conf/*.conf ./conf
 
-4/ Build gemini-image including GENIVI 5.0.1 (Gemini G1.1) components 
+4/ Build gemini-image including GENIVI 5.0.2 (Gemini G1.2) components 
 
 	bitbake gemini-image-rea

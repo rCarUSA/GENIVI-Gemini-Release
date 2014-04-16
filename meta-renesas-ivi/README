@@ -35,5 +35,5 @@ Change variables in $HOME/genivi-baseline/build/conf/local.conf
 	
 	
 3/ Build image
-Build gemini-image including GENIVI 5.0 (Gemini G1.0) components 
+Build gemini-image including GENIVI 5.x (Gemini G1.x) components 
 	bitbake gemini-image-rea
